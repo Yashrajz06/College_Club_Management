@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COORDINATOR
+  PRESIDENT
+  VP
+  MEMBER
+  GUEST
+}
+
+model User {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  
+  studentId     String?   @unique
+  department    String?
+  year          Int?
+
+  inviteToken   String?
+  inviteTokenExpiry DateTime?
+  isVerified    Boolean        @default(false)
+
+  role          Role           @default(MEMBER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relationships
+  coordinatedClubs Club[]        @relation("CoordinatorClubs")
+  presidencies     Club[]        @relation("PresidentClubs")
+  vpClubs          Club[]        @relation("VPClubs")
+  memberships      ClubMember[]
+  registrations    Registration[]
+  assignedTasks    Task[]        @relation("AssignedTo")
+  receivedInvitations Invitation[]
+}
+
+enum ClubStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model Club {
+  id               String       @id @default(uuid())
+  name             String       @unique
+  description      String
+  category         String
+  status           ClubStatus   @default(PENDING)
+  prizePoolBalance Float        @default(0.0)
+  createdAt        DateTime     @default(now())
+
+  // Relationships
+  coordinatorId    String?
+  coordinator      User?        @relation("CoordinatorClubs", fields: [coordinatorId], references: [id])
+  presidentId      String?
+  president        User?        @relation("PresidentClubs", fields: [presidentId], references: [id])
+  vpId             String?
+  vp               User?        @relation("VPClubs", fields: [vpId], references: [id])
+
+  members          ClubMember[]
+  events           Event[]
+  sponsors         Sponsor[]
+  transactions     Transaction[]
+  tasks            Task[]
+  invitations      Invitation[]
+}
+
+model ClubMember {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  clubId     String
+  club       Club     @relation(fields: [clubId], references: [id])
+  customRole String?  // e.g. "Treasurer", "Event Head"
+  joinedAt   DateTime @default(now())
+
+  @@unique([userId, clubId])
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONCLUDED
+}
+
+model Event {
+  id           String       @id @default(uuid())
+  title        String
+  description  String
+  date         DateTime
+  venue        String
+  capacity     Int
+  budget       Float        @default(0.0)
+  status       EventStatus  @default(PENDING)
+  isPublic     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  // Relationships
+  clubId       String
+  club         Club         @relation(fields: [clubId], references: [id])
+  
+  registrations Registration[]
+  transactions  Transaction[]
+}
+
+model Registration {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id])
+  isWaitlisted Boolean  @default(false)
+  attended     Boolean  @default(false)
+  qrCode       String?  @unique
+  certificateUrl String?
+  registeredAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+}
+
+enum SponsorStatus {
+  PROSPECT
+  CONTACTED
+  NEGOTIATING
+  CONFIRMED
+  DECLINED
+}
+
+model Sponsor {
+  id             String        @id @default(uuid())
+  name           String
+  organization   String
+  email          String?
+  phone          String?
+  status         SponsorStatus @default(PROSPECT)
+  createdAt      DateTime      @default(now())
+
+  // Relationships
+  clubId         String
+  club           Club          @relation(fields: [clubId], references: [id])
+  transactions   Transaction[]
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+model Transaction {
+  id             String          @id @default(uuid())
+  amount         Float
+  type           TransactionType
+  description    String
+  date           DateTime        @default(now())
+  
+  // Relationships
+  clubId         String
+  club           Club            @relation(fields: [clubId], references: [id])
+  eventId        String?
+  event          Event?          @relation(fields: [eventId], references: [id])
+  sponsorId      String?
+  sponsor        Sponsor?        @relation(fields: [sponsorId], references: [id])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  deadline    DateTime?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  createdAt   DateTime     @default(now())
+
+  // Relationships
+  clubId      String
+  club        Club         @relation(fields: [clubId], references: [id])
+  assigneeId  String
+  assignee    User         @relation("AssignedTo", fields: [assigneeId], references: [id])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Invitation {
+  id         String           @id @default(uuid())
+  clubId     String
+  club       Club             @relation(fields: [clubId], references: [id])
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  status     InvitationStatus @default(PENDING)
+  customRole String?
+  createdAt  DateTime         @default(now())
+
+  @@unique([userId, clubId])
+}
