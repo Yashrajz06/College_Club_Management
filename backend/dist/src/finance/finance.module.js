@@ -10,13 +10,14 @@ exports.FinanceModule = void 0;
 const common_1 = require("@nestjs/common");
 const finance_controller_1 = require("./finance.controller");
 const finance_service_1 = require("./finance.service");
+const algorand_service_1 = require("./algorand.service");
 let FinanceModule = class FinanceModule {
 };
 exports.FinanceModule = FinanceModule;
 exports.FinanceModule = FinanceModule = __decorate([
     (0, common_1.Module)({
         controllers: [finance_controller_1.FinanceController],
-        providers: [finance_service_1.FinanceService]
+        providers: [finance_service_1.FinanceService, algorand_service_1.AlgorandService]
     })
 ], FinanceModule);
 //# sourceMappingURL=finance.module.js.map

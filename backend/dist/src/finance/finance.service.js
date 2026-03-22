@@ -13,14 +13,18 @@ exports.FinanceService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const algorand_service_1 = require("./algorand.service");
 let FinanceService = class FinanceService {
     prisma;
-    constructor(prisma) {
+    algorand;
+    constructor(prisma, algorand) {
         this.prisma = prisma;
+        this.algorand = algorand;
     }
     async logTransaction(data) {
         if (data.amount <= 0)
             throw new common_1.BadRequestException('Amount must be greater than zero');
+        const txnHash = await this.algorand.logTransactionToLedger(data.amount, data.type, data.description);
         return this.prisma.$transaction(async (tx) => {
             const transaction = await tx.transaction.create({
                 data: {
@@ -29,7 +33,8 @@ let FinanceService = class FinanceService {
                     description: data.description,
                     clubId: data.clubId,
                     eventId: data.eventId,
-                    sponsorId: data.sponsorId
+                    sponsorId: data.sponsorId,
+                    txnHash
                 }
             });
             const club = await tx.club.update({
@@ -67,6 +72,7 @@ let FinanceService = class FinanceService {
 exports.FinanceService = FinanceService;
 exports.FinanceService = FinanceService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        algorand_service_1.AlgorandService])
 ], FinanceService);
 //# sourceMappingURL=finance.service.js.map

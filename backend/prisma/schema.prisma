@@ -164,6 +164,8 @@ model Transaction {
   description    String
   date           DateTime        @default(now())
   
+  txnHash        String?         @unique // Algorand Testnet Transaction Hash
+  
   // Relationships
   clubId         String
   club           Club            @relation(fields: [clubId], references: [id])

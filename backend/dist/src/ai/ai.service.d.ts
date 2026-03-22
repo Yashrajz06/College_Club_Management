@@ -8,9 +8,24 @@ export declare class AiService {
     }>;
     generatePosterBackground(prompt: string): Promise<{
         imageUrl: string;
+        source: string;
+        error?: undefined;
+    } | {
+        imageUrl: string;
+        source: string;
+        error: any;
     }>;
     generateGuestCertificates(eventId: string): Promise<{
         count: number;
         status: string;
-    } | undefined>;
+        certificates?: undefined;
+    } | {
+        count: number;
+        status: string;
+        certificates: {
+            name: string;
+            certificateUrl: string;
+        }[];
+    }>;
+    checkOllamaHealth(): Promise<boolean>;
 }

@@ -54,16 +54,35 @@ function App() {
                     <Link to="/admin" className="text-sm font-medium text-blue-600 hover:text-blue-800">Admin</Link>
                   )}
                   {(user?.role === 'PRESIDENT' || user?.role === 'VP') && (
-                    <div className="flex items-center space-x-3">
-                      <Link to="/manage-club" className="text-sm font-medium text-blue-600 hover:text-blue-800">Manage Club</Link>
-                      <Link to="/create-event" className="text-sm font-medium text-purple-600 hover:text-purple-800">Create Event</Link>
-                      <Link to="/publish-events" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">Publish Events</Link>
-                      <Link to="/taskboard" className="text-sm font-medium text-slate-600 hover:text-slate-800">Tasks</Link>
-                      <Link to="/ledger" className="text-sm font-medium text-emerald-600 hover:text-emerald-800">Ledger</Link>
-                      <Link to="/finances" className="text-sm font-medium text-blue-600 hover:text-blue-800">Sponsors</Link>
-                      <Link to="/attendance" className="text-sm font-medium text-orange-500 hover:text-orange-700">Attendance</Link>
-                      <Link to="/gallery" className="text-sm font-medium text-teal-500 hover:text-teal-700">Gallery</Link>
-                      <Link to="/studio" className="text-sm font-medium text-purple-600 hover:text-purple-800 flex items-center gap-1">✨ Studio</Link>
+                    <div className="flex items-center space-x-1 sm:space-x-3">
+                      <Link to="/manage-club" className="text-sm font-medium text-slate-700 hover:text-blue-600 px-2 py-1 transition-colors">Manage Club</Link>
+                      
+                      {/* Events Dropdown */}
+                      <div className="relative group">
+                        <button className="text-sm font-medium text-slate-700 hover:text-purple-600 px-2 py-1 flex items-center gap-1 transition-colors">
+                          Events ▾
+                        </button>
+                        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-1 z-50">
+                          <Link to="/create-event" className="block px-4 py-2 text-sm text-slate-600 hover:bg-purple-50 hover:text-purple-700">Create Event</Link>
+                          <Link to="/publish-events" className="block px-4 py-2 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700">Publish Events</Link>
+                          <Link to="/attendance" className="block px-4 py-2 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-700">Attendance</Link>
+                          <Link to="/gallery" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Photo Gallery</Link>
+                        </div>
+                      </div>
+
+                      {/* Tools Dropdown */}
+                      <div className="relative group">
+                        <button className="text-sm font-medium text-slate-700 hover:text-emerald-600 px-2 py-1 flex items-center gap-1 transition-colors">
+                          Tools ▾
+                        </button>
+                        <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-1 z-50">
+                          <Link to="/taskboard" className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">Task Board</Link>
+                          <Link to="/ledger" className="block px-4 py-2 text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">Financial Ledger</Link>
+                          <Link to="/finances" className="block px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700">Sponsor CRM</Link>
+                          <div className="border-t border-slate-100 my-1"></div>
+                          <Link to="/studio" className="block px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 flex items-center gap-2"><span>✨</span> AI Studio</Link>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {user?.role === 'COORDINATOR' && (

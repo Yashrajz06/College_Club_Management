@@ -1,8 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { TransactionType } from '@prisma/client';
+import { AlgorandService } from './algorand.service';
 export declare class FinanceService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private algorand;
+    constructor(prisma: PrismaService, algorand: AlgorandService);
     logTransaction(data: {
         amount: number;
         type: TransactionType;
@@ -16,10 +18,11 @@ export declare class FinanceService {
         description: string;
         clubId: string;
         date: Date;
-        eventId: string | null;
-        sponsorId: string | null;
         amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
+        txnHash: string | null;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     getClubTransactions(clubId: string): Promise<({
         event: {
@@ -33,10 +36,11 @@ export declare class FinanceService {
         description: string;
         clubId: string;
         date: Date;
-        eventId: string | null;
-        sponsorId: string | null;
         amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
+        txnHash: string | null;
+        eventId: string | null;
+        sponsorId: string | null;
     })[]>;
     getClubBalance(clubId: string): Promise<number>;
 }

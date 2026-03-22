@@ -8,5 +8,11 @@ export declare class AiController {
     }>;
     generatePoster(prompt: string): Promise<{
         imageUrl: string;
+        source: string;
+        error?: undefined;
+    } | {
+        imageUrl: string;
+        source: string;
+        error: any;
     }>;
 }

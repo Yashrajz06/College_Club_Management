@@ -7,10 +7,11 @@ export declare class FinanceController {
         description: string;
         clubId: string;
         date: Date;
-        eventId: string | null;
-        sponsorId: string | null;
         amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
+        txnHash: string | null;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     getClubTransactions(clubId: string): Promise<({
         event: {
@@ -24,10 +25,11 @@ export declare class FinanceController {
         description: string;
         clubId: string;
         date: Date;
-        eventId: string | null;
-        sponsorId: string | null;
         amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
+        txnHash: string | null;
+        eventId: string | null;
+        sponsorId: string | null;
     })[]>;
     getClubBalance(clubId: string): Promise<{
         balance: number;

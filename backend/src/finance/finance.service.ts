@@ -1,13 +1,20 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TransactionType, Role } from '@prisma/client';
+import { AlgorandService } from './algorand.service';
 
 @Injectable()
 export class FinanceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private algorand: AlgorandService
+  ) {}
 
   async logTransaction(data: { amount: number; type: TransactionType; description: string; clubId: string; eventId?: string; sponsorId?: string; userId: string }) {
     if (data.amount <= 0) throw new BadRequestException('Amount must be greater than zero');
+
+    // 1. Send data to the blockchain via our new Algorand service
+    const txnHash = await this.algorand.logTransactionToLedger(data.amount, data.type, data.description);
 
     // Perform transaction using Prisma interactive transaction to ensure atomicity
     return this.prisma.$transaction(async (tx) => {
@@ -19,7 +26,8 @@ export class FinanceService {
           description: data.description,
           clubId: data.clubId,
           eventId: data.eventId,
-          sponsorId: data.sponsorId
+          sponsorId: data.sponsorId,
+          txnHash // 2. Bind the 52-character Algorand TxID
         }
       });
 

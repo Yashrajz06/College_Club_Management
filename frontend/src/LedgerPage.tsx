@@ -7,6 +7,7 @@ interface Transaction {
   id: string; amount: number; type: 'CREDIT' | 'DEBIT'; description: string; date: string;
   sponsor?: { name: string };
   event?: { title: string };
+  txnHash?: string;
 }
 
 const CATEGORIES = ['Venue', 'Decoration', 'Refreshments', 'Prizes', 'Marketing', 'Equipment', 'Printing', 'Miscellaneous'];
@@ -171,10 +172,15 @@ export default function LedgerPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-slate-900">{tx.description}</p>
-                        <p className="text-xs text-slate-500">
-                          {new Date(tx.date).toLocaleDateString()}
-                          {tx.event ? ` · 📅 ${tx.event.title}` : ''}
-                          {tx.sponsor ? ` · 🤝 ${tx.sponsor.name}` : ''}
+                        <p className="text-xs text-slate-500 mt-1 flex items-center flex-wrap gap-2">
+                          <span>{new Date(tx.date).toLocaleDateString()}</span>
+                          {tx.event && <span>· 📅 {tx.event.title}</span>}
+                          {tx.sponsor && <span>· 🤝 {tx.sponsor.name}</span>}
+                          {tx.txnHash && (
+                            <a href={`https://testnet.explorer.perawallet.app/tx/${tx.txnHash}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-0.5 rounded transition-colors" title={`Txn Id: ${tx.txnHash}`}>
+                              <span className="text-[10px]">🔗</span> AlgoExplorer
+                            </a>
+                          )}
                         </p>
                       </div>
                     </div>

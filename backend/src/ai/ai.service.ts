@@ -3,55 +3,236 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AiService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
+  // ─────────────────────────────────────────────
+  // 1. SPONSOR OUTREACH — actual Ollama call
+  // ─────────────────────────────────────────────
   async draftSponsorMessage(eventId: string, sponsorId: string) {
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { club: true } });
-    const sponsor = await this.prisma.sponsor.findUnique({ where: { id: sponsorId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: { club: true },
+    });
+    const sponsor = await this.prisma.sponsor.findUnique({
+      where: { id: sponsorId },
+    });
 
-    if (!event || !sponsor) throw new Error("Event or Sponsor not found");
+    if (!event || !sponsor) {
+      throw new Error('Event or Sponsor not found');
+    }
 
-    // In a real scenario, this would post to a local Ollama instance on http://localhost:11434/api/generate
-    // e.g. await fetch('http://localhost:11434/api/generate', { model: 'llama3', prompt: `Draft email...` })
-    
-    return {
-      subject: `Sponsorship Opportunity: ${event.title}`,
-      message: `Dear ${sponsor.name},\n\nWe at ${event.club.name} are hosting an exciting event "${event.title}" on ${event.date.toLocaleDateString()} at ${event.venue}.\n\nGiven ${sponsor.organization}'s esteemed position, we would love to invite you to sponsor our event. We are expecting a footfall of ${event.capacity} students.\n\nLooking forward to your response.\n\nBest Regards,\nThe Team at ${event.club.name}`
-    };
+    const prompt = `
+      Write a professional sponsorship outreach email for the following:
+      - Club Name: ${event.club.name}
+      - Event Name: ${event.title}
+      - Event Date: ${event.date.toLocaleDateString()}
+      - Event Venue: ${event.venue}
+      - Expected Footfall: ${event.capacity} students
+      - Sponsor Organization: ${sponsor.organization}
+      - Sponsor Contact Person: ${sponsor.name}
+
+      The email should:
+      - Be formal and concise (max 150 words)
+      - Mention the sponsorship opportunity clearly
+      - Highlight audience size and visibility benefits
+      - End with a call to action
+      - Include a subject line at the top in format: Subject: <subject>
+
+      Return only the email text, nothing else.
+    `;
+
+    const ollamaUrl =
+      process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
+
+    try {
+      const response = await fetch(ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3',
+          prompt,
+          stream: false, // get full response at once
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const fullText: string = data.response || '';
+
+      // Parse subject line from response
+      const subjectMatch = fullText.match(/Subject:\s*(.+)/i);
+      const subject = subjectMatch
+        ? subjectMatch[1].trim()
+        : `Sponsorship Opportunity: ${event.title}`;
+
+      // Remove the subject line from the message body
+      const message = fullText.replace(/Subject:\s*.+\n?/i, '').trim();
+
+      return { subject, message };
+
+    } catch (error) {
+      console.error('Ollama call failed, using fallback template:', error);
+
+      // Fallback template if Ollama is not running
+      return {
+        subject: `Sponsorship Opportunity: ${event.title}`,
+        message: `Dear ${sponsor.name},\n\nWe at ${event.club.name} are hosting "${event.title}" on ${event.date.toLocaleDateString()} at ${event.venue}.\n\nWe are expecting ${event.capacity} students and would love to have ${sponsor.organization} as our sponsor.\n\nWould you be available for a brief call to discuss this further?\n\nBest Regards,\nThe Team at ${event.club.name}`,
+      };
+    }
   }
 
+  // ─────────────────────────────────────────────
+  // 2. POSTER BACKGROUND — corrected HF model
+  // ─────────────────────────────────────────────
   async generatePosterBackground(prompt: string) {
-    // In a real scenario, this connects to Hugging Face Inference API / Stable Diffusion Local
-    // e.g. await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0', { ... })
-    
-    // Fallback Mock: returning an Unsplash source URL that matches the theme
-    const keyword = prompt.split(' ')[0] || 'college';
-    return { imageUrl: `https://source.unsplash.com/800x600/?${encodeURIComponent(keyword)},abstract,event` };
+    const apiKey = process.env.HUGGINGFACE_API_KEY;
+
+    // Fallback if no API key
+    if (!apiKey) {
+      console.warn('No HUGGINGFACE_API_KEY found, using fallback image');
+      const keyword = prompt.split(' ')[0] || 'college';
+      return {
+        imageUrl: `https://source.unsplash.com/800x600/?${encodeURIComponent(keyword)},abstract,event`,
+        source: 'fallback',
+      };
+    }
+
+    const enhancedPrompt = `${prompt}, highly detailed, aesthetic poster background, 
+      vibrant colors, professional event design, 4k resolution, 
+      cinematic lighting, no text, no watermarks`;
+
+    try {
+      // Use SDXL — most capable free model on HF inference API
+      const response = await fetch(
+        'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: enhancedPrompt,
+            parameters: {
+              negative_prompt:
+                'text, watermark, blurry, low quality, distorted, ugly',
+              num_inference_steps: 30,
+              guidance_scale: 7.5,
+              width: 768,
+              height: 512,
+            },
+          }),
+        },
+      );
+
+      // HF returns 503 when model is loading
+      if (response.status === 503) {
+        const errorBody = await response.json();
+        const waitTime = errorBody?.estimated_time || 20;
+        throw new Error(
+          `Model is loading, estimated wait: ${waitTime}s. Try again shortly.`,
+        );
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Hugging Face API error: ${response.status} — ${errorText}`);
+      }
+
+      // HF returns raw image binary — convert to base64
+      const imageBuffer = await response.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      const imageUrl = `data:image/jpeg;base64,${base64Image}`;
+
+      return { imageUrl, source: 'stable-diffusion-xl' };
+
+    } catch (error) {
+      console.error('Poster generation failed:', error);
+
+      // Graceful fallback
+      const keyword = prompt.split(' ')[0] || 'event';
+      return {
+        imageUrl: `https://source.unsplash.com/800x600/?${encodeURIComponent(keyword)},abstract`,
+        source: 'fallback',
+        error: error.message,
+      };
+    }
   }
 
+  // ─────────────────────────────────────────────
+  // 3. GUEST CERTIFICATES — proper implementation
+  // ─────────────────────────────────────────────
   async generateGuestCertificates(eventId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
-        registrations: { where: { attended: true, user: { role: 'GUEST' } }, include: { user: true } },
+        registrations: {
+          where: { attended: true },
+          include: { user: true },
+        },
         club: true,
       },
     });
 
-    if (!event) return;
-
-    // Simulate AI generation for each guest
-    for (const reg of event.registrations) {
-      console.log(`Generating AI Thank-You Certificate for guest: ${reg.user.name} for event: ${event.title}`);
-      
-      const certificateUrl = `https://source.unsplash.com/800x600/?diploma,certificate,appreciation,${event.club.name.toLowerCase().replace(/ /g, ',')}`;
-      
-      await this.prisma.registration.update({
-        where: { id: reg.id },
-        data: { certificateUrl }
-      });
+    if (!event) throw new Error('Event not found');
+    if (event.registrations.length === 0) {
+      return { count: 0, status: 'no_attendees' };
     }
 
-    return { count: event.registrations.length, status: 'certificates_completed' };
+    const results: { name: string; certificateUrl: string }[] = [];
+
+    for (const reg of event.registrations) {
+      try {
+        // Build a prompt for a certificate-style background
+        const certPrompt = `
+          professional certificate of participation background, 
+          elegant design, gold border, ${event.club.name} theme,
+          formal academic style, no text, clean layout
+        `;
+
+        // Generate AI certificate background
+        const { imageUrl } = await this.generatePosterBackground(certPrompt);
+
+        // Save certificate URL back to registration
+        await this.prisma.registration.update({
+          where: { id: reg.id },
+          data: { certificateUrl: imageUrl },
+        });
+
+        results.push({ name: reg.user.name, certificateUrl: imageUrl });
+
+        // Small delay between HF API calls to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      } catch (err) {
+        console.error(
+          `Certificate generation failed for ${reg.user.name}:`,
+          err,
+        );
+      }
+    }
+
+    return {
+      count: results.length,
+      status: 'certificates_completed',
+      certificates: results,
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // 4. HELPER — check if Ollama is running
+  // ─────────────────────────────────────────────
+  async checkOllamaHealth(): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${process.env.OLLAMA_URL || 'http://localhost:11434'}/api/tags`,
+      );
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 }

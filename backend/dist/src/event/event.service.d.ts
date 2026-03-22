@@ -21,11 +21,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPendingApprovals(coordinatorId: string): Promise<({
@@ -38,11 +38,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     approveEvent(eventId: string, remarks?: string): Promise<{
@@ -51,11 +51,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     rejectEvent(eventId: string, remarks?: string): Promise<{
@@ -64,11 +64,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPublishableEvents(userId: string): Promise<({
@@ -81,11 +81,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     makeEventPublic(eventId: string, userId: string): Promise<{
@@ -94,11 +94,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     concludeEvent(eventId: string): Promise<{
@@ -107,11 +107,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPublicEvents(): Promise<({
@@ -128,11 +128,11 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     getEventById(eventId: string): Promise<{
@@ -149,18 +149,18 @@ export declare class EventService {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     registerForEvent(userId: string, eventId: string): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -174,8 +174,8 @@ export declare class EventService {
     }): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -192,8 +192,8 @@ export declare class EventService {
     } & {
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -202,8 +202,8 @@ export declare class EventService {
     markAttendance(registrationId: string, attended: boolean): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -212,8 +212,8 @@ export declare class EventService {
     markAttendanceByQR(qrCode: string): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;

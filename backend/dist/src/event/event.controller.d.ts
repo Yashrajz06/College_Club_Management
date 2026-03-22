@@ -8,11 +8,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPending(req: any): Promise<({
@@ -25,11 +25,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     approveEvent(id: string, remarks: string): Promise<{
@@ -38,11 +38,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     rejectEvent(id: string, remarks: string): Promise<{
@@ -51,11 +51,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPublicEvents(): Promise<({
@@ -72,11 +72,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     getEventById(id: string): Promise<{
@@ -93,18 +93,18 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     register(id: string, req: any): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -113,8 +113,8 @@ export declare class EventController {
     guestRegister(id: string, body: any): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -131,8 +131,8 @@ export declare class EventController {
     } & {
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -144,8 +144,8 @@ export declare class EventController {
     }): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -156,8 +156,8 @@ export declare class EventController {
     }): Promise<{
         id: string;
         userId: string;
-        attended: boolean;
         eventId: string;
+        attended: boolean;
         isWaitlisted: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
@@ -169,11 +169,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
     getPublishable(req: any): Promise<({
@@ -186,11 +186,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     })[]>;
     makePublic(id: string, req: any): Promise<{
@@ -199,11 +199,11 @@ export declare class EventController {
         description: string;
         status: import(".prisma/client").$Enums.EventStatus;
         clubId: string;
-        budget: number;
-        capacity: number;
         title: string;
         date: Date;
         venue: string;
+        capacity: number;
+        budget: number;
         isPublic: boolean;
     }>;
 }
