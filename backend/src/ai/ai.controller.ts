@@ -3,11 +3,13 @@ import { AiService } from './ai.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { TokenGate } from '../auth/decorators/token-gate.decorator';
+import { Role, BlockchainActionType } from '@prisma/client';
 import { Body, Post, Request } from '@nestjs/common';
 
 @Controller('ai')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+@TokenGate(BlockchainActionType.MINT)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

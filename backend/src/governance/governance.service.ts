@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AlgorandService } from '../finance/algorand.service';
 import { TokenGateService } from '../finance/token-gate.service';
 import { FinanceService } from '../finance/finance.service';
+import { TokenService } from '../token/token.service';
 import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
@@ -30,6 +31,7 @@ export class GovernanceService {
     private readonly algorand: AlgorandService,
     private readonly tokenGate: TokenGateService,
     private readonly finance: FinanceService,
+    private readonly tokenService: TokenService,
   ) {}
 
   // ── Create Proposal ───────────────────────────────────────
@@ -228,6 +230,15 @@ export class GovernanceService {
         weight,
         txId,
       },
+    });
+
+    await this.tokenService.mintEntryToken({
+      userId: voterId,
+      actionType: 'VOTE',
+      walletAddress: voter?.walletAddress ?? undefined,
+      clubId: proposal.clubId,
+      eventId: proposal.eventId,
+      metadata: { proposalId },
     });
 
     return vote;

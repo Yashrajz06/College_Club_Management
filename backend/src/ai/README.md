@@ -9,9 +9,14 @@ The AI module has been upgraded from a simple asset generator to a fully integra
 The `InsightsService` builds a large JSON context payload strictly scoped to the user's `collegeId`. It includes:
 - **TreasuryContext**: Recent spend requests, amounts, and statuses.
 - **AttendanceContext**: Events with their respective verified PoP counts.
+- **TokenContext**: Distribution of Entry Tokens and Top Holders (Soulbound/Entry Tokens).
 - **General Metrics**: Total clubs, events, sponsors, and blockchain indexer transactions.
 
-### 2. Smart Event Actions & Triggers
+### 2. Token-Gated Intelligence
+Access to the **AI Chief of Staff** is guarded by the `TokenGateGuard`. Users must possess at least one **Entry Token** (earned via Attendance PoP or Governance Voting) to unlock conversational intelligence. This ensures the AI's suggestions are based on a community of active participants.
+- *See [Token Testing Guide](../token/README.md) for verification steps.*
+
+### 3. Smart Event Actions & Triggers
 The AI doesn't just talk; it acts. The backend prompts `llama3` via Ollama to output strict JSON payloads when an action is strongly recommended. The supported actions:
 - `CREATE_PROPOSAL`: Automatically drafts a DAO Governance proposal (e.g., "Fund a 500 ALGO prize pool based on last hackathon's high attendance").
 - `MINT_TOKEN`: Suggests minting a Participation Entry Token or Soulbound NFT for outstanding members.

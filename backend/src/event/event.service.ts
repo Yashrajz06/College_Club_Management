@@ -18,6 +18,8 @@ import { AlgorandService } from '../finance/algorand.service';
 import { InsightsService } from '../insights/insights.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TokenService } from '../token/token.service';
+import { TokenActionType } from '@prisma/client';
 
 @Injectable()
 export class EventService {
@@ -28,6 +30,7 @@ export class EventService {
     private readonly mailService: MailService,
     private readonly algorand: AlgorandService,
     private readonly insights: InsightsService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async createEvent(data: {
@@ -418,17 +421,14 @@ export class EventService {
       },
     });
 
-    await this.algorand.triggerLifecycleAction({
-      action: BlockchainActionType.MINT,
-      contractType: CollegeContractType.ENTRY_TOKEN,
-      entityId: registration.id,
-      walletAddress: user.walletAddress,
+    await this.tokenService.mintEntryToken({
+      userId,
+      actionType: TokenActionType.REGISTER,
+      walletAddress: user.walletAddress ?? undefined,
+      eventId,
       metadata: {
         reason: 'event_registration',
-        eventId,
-        userId,
         registrationId: registration.id,
-        targetWalletAddress: user.walletAddress,
       },
     });
 

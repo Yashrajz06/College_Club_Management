@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, BlockchainActionType } from '@prisma/client';
+import { TokenGate } from '../auth/decorators/token-gate.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AttendanceService } from './attendance.service';
 
 @Controller('attendance')
+@TokenGate(BlockchainActionType.MINT)
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 

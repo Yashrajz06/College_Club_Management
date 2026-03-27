@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, BlockchainActionType } from '@prisma/client';
+import { TokenGate } from '../auth/decorators/token-gate.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateGovernanceProposalDto, CastVoteDto } from './dto/create-governance-proposal.dto';
 import { GovernanceService } from './governance.service';
 
 @Controller('governance')
+@TokenGate(BlockchainActionType.MINT)
 export class GovernanceController {
   constructor(private readonly governanceService: GovernanceService) {}
 

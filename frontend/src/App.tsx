@@ -30,6 +30,7 @@ import Profile from './Profile';
 import Governance from './Governance';
 import TreasuryExplorer from './TreasuryExplorer';
 import AttendanceScanner from './AttendanceScanner';
+import MyTokens from './MyTokens';
 
 function App() {
   const dispatch = useDispatch();
@@ -60,6 +61,9 @@ function App() {
                 <div className="flex items-center space-x-3 flex-wrap">
                   <Link to="/dashboard" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
                     Dashboard
+                  </Link>
+                  <Link to="/my-tokens" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1">
+                    <span>🪙</span> My Tokens
                   </Link>
                   <Link to="/create-club" className="text-sm font-semibold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors">
                     + Start a Club
@@ -136,6 +140,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<MemberDashboard />} />
+            <Route path="/my-tokens" element={<MyTokens />} />
             <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/create-club" element={<CreateClub />} />
             <Route path="/admin" element={<AdminDashboard />} />

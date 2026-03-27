@@ -21,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({ 
       where: { id: payload.sub },
       // Important: We need the collegeId for the CLS context
-      select: { id: true, email: true, role: true, collegeId: true } 
+      select: { id: true, email: true, role: true, collegeId: true, walletAddress: true } 
     });
     
     if (!user) {
@@ -31,6 +31,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Set the collegeId in CLS context for automatic Prisma scoping
     this.cls.set('collegeId', user.collegeId);
 
-    return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId };
+    return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId, walletAddress: user.walletAddress };
   }
 }

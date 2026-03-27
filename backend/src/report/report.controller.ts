@@ -3,11 +3,13 @@ import { ReportService } from './report.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role } from '@prisma/client';
+import { TokenGate } from '../auth/decorators/token-gate.decorator';
+import { Role, BlockchainActionType } from '@prisma/client';
 import type { Response } from 'express';
 
 @Controller('report')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+@TokenGate(BlockchainActionType.MINT)
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 

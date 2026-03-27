@@ -15,6 +15,8 @@ import { ClsService } from 'nestjs-cls';
 import { AlgorandService } from '../finance/algorand.service';
 import { InsightsService } from '../insights/insights.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TokenService } from '../token/token.service';
+import { TokenActionType } from '@prisma/client';
 
 @Injectable()
 export class ClubService {
@@ -23,6 +25,7 @@ export class ClubService {
     private readonly cls: ClsService,
     private readonly algorand: AlgorandService,
     private readonly insights: InsightsService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async createClubRequest(data: {
@@ -165,16 +168,13 @@ export class ClubService {
       return approvedClub;
     });
 
-    await this.algorand.triggerLifecycleAction({
-      action: BlockchainActionType.MINT,
-      contractType: CollegeContractType.ENTRY_TOKEN,
-      entityId: updated.id,
-      walletAddress: club.president?.walletAddress,
+    await this.tokenService.mintEntryToken({
+      userId: club.presidentId,
+      actionType: TokenActionType.JOIN,
+      walletAddress: club.president?.walletAddress ?? undefined,
+      clubId: updated.id,
       metadata: {
-        reason: 'club_approval',
-        clubId: updated.id,
-        userId: club.presidentId,
-        targetWalletAddress: club.president?.walletAddress,
+        reason: 'club_approval_founder',
       },
     });
 
@@ -464,6 +464,18 @@ export class ClubService {
           clubId: invite.clubId,
           customRole: invite.customRole,
         },
+      });
+
+      const member = await this.prisma.user.findFirst({
+        where: { id: invite.userId, collegeId },
+        select: { walletAddress: true },
+      });
+
+      await this.tokenService.mintEntryToken({
+        userId: invite.userId,
+        actionType: TokenActionType.JOIN,
+        walletAddress: member?.walletAddress ?? undefined,
+        clubId: invite.clubId,
       });
     }
 

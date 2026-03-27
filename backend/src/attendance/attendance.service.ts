@@ -15,6 +15,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AlgorandService } from '../finance/algorand.service';
 import { TokenGateService } from '../finance/token-gate.service';
 import { InsightsService } from '../insights/insights.service';
+import { TokenService } from '../token/token.service';
+import { TokenActionType } from '@prisma/client';
 
 interface NonceEntry {
   nonce: string;
@@ -35,6 +37,7 @@ export class AttendanceService {
     private readonly algorand: AlgorandService,
     private readonly tokenGate: TokenGateService,
     private readonly insights: InsightsService,
+    private readonly tokenService: TokenService,
   ) {
     // Periodically clean expired nonces
     setInterval(() => this.cleanExpiredNonces(), 60_000);
@@ -171,46 +174,25 @@ export class AttendanceService {
       data: { attended: true },
     });
 
-    // 6. Mint Participation Entry Token
+    // 6. Mint Participation Entry Token & Soulbound NFT
     const mintResults: { entryTokenTxId?: string; soulboundTxId?: string; proofTxId?: string } = {};
 
     try {
-      const entryResult = await this.algorand.triggerLifecycleAction({
-        action: BlockchainActionType.MINT,
-        contractType: CollegeContractType.ENTRY_TOKEN,
-        entityId: registration.id,
+      const entryToken = await this.tokenService.mintEntryToken({
+        userId: registration.userId,
+        actionType: TokenActionType.ATTEND,
         walletAddress: data.walletAddress,
+        eventId: registration.eventId,
+        clubId: registration.event.clubId,
         metadata: {
           reason: 'pop_attendance_verified',
-          eventId: registration.eventId,
-          userId: registration.userId,
           registrationId: registration.id,
-          targetWalletAddress: data.walletAddress,
         },
       });
-      mintResults.entryTokenTxId = entryResult.txId;
+      mintResults.entryTokenTxId = entryToken.txId;
+      mintResults.soulboundTxId = entryToken.soulboundTxId ?? undefined;
     } catch (err) {
-      this.logger.warn(`Entry Token mint failed: ${err}`);
-    }
-
-    // 7. Mint Soulbound NFT
-    try {
-      const soulboundResult = await this.algorand.triggerLifecycleAction({
-        action: BlockchainActionType.MINT,
-        contractType: CollegeContractType.SOULBOUND,
-        entityId: registration.id,
-        walletAddress: data.walletAddress,
-        metadata: {
-          reason: 'pop_soulbound_attendance',
-          eventId: registration.eventId,
-          userId: registration.userId,
-          registrationId: registration.id,
-          targetWalletAddress: data.walletAddress,
-        },
-      });
-      mintResults.soulboundTxId = soulboundResult.txId;
-    } catch (err) {
-      this.logger.warn(`Soulbound NFT mint failed: ${err}`);
+      this.logger.warn(`Failed to mint entry/soulbound tokens: ${err}`);
     }
 
     // 8. Log on-chain attendance proof note

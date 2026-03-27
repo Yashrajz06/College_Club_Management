@@ -109,22 +109,73 @@ export class InsightsService {
 
   async getDashboardStats() {
     const collegeId = this.getCurrentCollegeIdOrThrow();
+    const tokenMetrics = await this.getTokenDistributionMetrics(collegeId);
+
     const supabaseStats = await this.getDashboardStatsFromSupabase(collegeId);
     if (supabaseStats) {
-      return supabaseStats;
+      return { ...supabaseStats, tokenMetrics };
     }
 
-    return this.getDashboardStatsFromPrisma(collegeId);
+    const prismaStats = await this.getDashboardStatsFromPrisma(collegeId);
+    return { ...prismaStats, tokenMetrics };
   }
 
   async getAssistantContext() {
     const collegeId = this.getCurrentCollegeIdOrThrow();
+    const tokenMetrics = await this.getTokenDistributionMetrics(collegeId);
+
     const supabaseContext = await this.getAssistantContextFromSupabase(collegeId);
     if (supabaseContext) {
-      return supabaseContext;
+      return { ...supabaseContext, tokenMetrics };
     }
 
-    return this.getAssistantContextFromPrisma(collegeId);
+    const prismaContext = await this.getAssistantContextFromPrisma(collegeId);
+    return { ...prismaContext, tokenMetrics };
+  }
+
+  async getTokenDistributionMetrics(collegeId: string) {
+    const actionCounts = await this.prisma.entryToken.groupBy({
+      by: ['actionType'],
+      _count: { id: true },
+      where: { collegeId },
+    });
+
+    const totalTokens = actionCounts.reduce((acc, curr) => acc + (curr._count?.id ?? 0), 0);
+
+    const distributionByAction = actionCounts.map((val) => ({
+      action: val.actionType,
+      count: val._count?.id ?? 0,
+    }));
+
+    // Top token holders
+    const topHoldersRaw = await this.prisma.entryToken.groupBy({
+      by: ['userId'],
+      _count: { id: true },
+      where: { collegeId },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    const topHolders = await Promise.all(
+      topHoldersRaw.map(async (h) => {
+        const user = await this.prisma.user.findFirst({
+          where: { id: h.userId },
+          select: { name: true, walletAddress: true },
+        });
+        return {
+          userId: h.userId,
+          name: user?.name ?? 'Unknown',
+          walletAddress: user?.walletAddress,
+          count: h._count?.id ?? 0,
+        };
+      })
+    );
+
+    return {
+      totalActiveTokens: totalTokens,
+      distributionByAction,
+      topHolders,
+    };
   }
 
   private async getDashboardStatsFromSupabase(collegeId: string) {

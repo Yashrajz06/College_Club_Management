@@ -14,41 +14,41 @@ model College {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  config        CollegeConfig?
-  users         User[]
-  clubs         Club[]
-  events        Event[]
-  sponsors      Sponsor[]
-  transactions  Transaction[]
-  tasks         Task[]
-  invitations   Invitation[]
-  clubMembers   ClubMember[]
-  registrations Registration[]
-  contracts     CollegeContract[]
-  blockchainActivities BlockchainActivity[]
-  governanceProposals GovernanceProposal[]
-  governanceVotes     GovernanceVote[]
+  config                CollegeConfig?
+  users                 User[]
+  clubs                 Club[]
+  events                Event[]
+  sponsors              Sponsor[]
+  transactions          Transaction[]
+  tasks                 Task[]
+  invitations           Invitation[]
+  clubMembers           ClubMember[]
+  registrations         Registration[]
+  contracts             CollegeContract[]
+  blockchainActivities  BlockchainActivity[]
+  governanceProposals   GovernanceProposal[]
+  governanceVotes       GovernanceVote[]
   treasurySpendRequests TreasurySpendRequest[]
-  entryTokens         EntryToken[]
+  entryTokens           EntryToken[]
 }
 
 model CollegeConfig {
-  id               String   @id @default(uuid())
-  collegeId        String   @unique
-  college          College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
-  treasuryContract String?  // Algorand smart contract app id
-  treasuryAppId    String?
-  treasuryAddress  String?
-  entryTokenAssetId String?
-  soulboundAssetId String?
+  id                    String          @id @default(uuid())
+  collegeId             String          @unique
+  college               College         @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  treasuryContract      String? // Algorand smart contract app id
+  treasuryAppId         String?
+  treasuryAddress       String?
+  entryTokenAssetId     String?
+  soulboundAssetId      String?
   entryTokenMinterAppId String? // Added for Entry Token syncing
-  attendancePoPAppId   String? // Added for PoP attendance guarding
-  governanceAppId     String? // Added for Governance guarding
-  algorandNetwork  AlgorandNetwork @default(TESTNET)
-  algodUrl         String?
-  indexerUrl       String?
-  brandingColor    String?
-  brandingLogo     String?
+  attendancePoPAppId    String? // Added for PoP attendance guarding
+  governanceAppId       String? // Added for Governance guarding
+  algorandNetwork       AlgorandNetwork @default(TESTNET)
+  algodUrl              String?
+  indexerUrl            String?
+  brandingColor         String?
+  brandingLogo          String?
 }
 
 enum AlgorandNetwork {
@@ -86,39 +86,39 @@ enum Role {
 }
 
 model User {
-  id              String         @id @default(uuid())
-  name            String
-  email           String         @unique
-  passwordHash    String
-  
-  studentId       String?   @unique
-  department      String?
-  year            Int?
+  id           String @id @default(uuid())
+  name         String
+  email        String @unique
+  passwordHash String
 
-  inviteToken     String?
+  studentId  String? @unique
+  department String?
+  year       Int?
+
+  inviteToken       String?
   inviteTokenExpiry DateTime?
-  isVerified      Boolean        @default(false)
+  isVerified        Boolean   @default(false)
 
-  role            Role           @default(MEMBER)
-  walletAddress   String?        // Pera Wallet address
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  role          Role     @default(MEMBER)
+  walletAddress String? // Pera Wallet address
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  collegeId       String
-  college         College        @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  coordinatedClubs Club[]        @relation("CoordinatorClubs")
-  presidencies     Club[]        @relation("PresidentClubs")
-  vpClubs          Club[]        @relation("VPClubs")
-  memberships      ClubMember[]
-  registrations    Registration[]
-  assignedTasks    Task[]        @relation("AssignedTo")
-  receivedInvitations Invitation[]
-  governanceProposals GovernanceProposal[]
-  governanceVotes     GovernanceVote[]
+  coordinatedClubs      Club[]                 @relation("CoordinatorClubs")
+  presidencies          Club[]                 @relation("PresidentClubs")
+  vpClubs               Club[]                 @relation("VPClubs")
+  memberships           ClubMember[]
+  registrations         Registration[]
+  assignedTasks         Task[]                 @relation("AssignedTo")
+  receivedInvitations   Invitation[]
+  governanceProposals   GovernanceProposal[]
+  governanceVotes       GovernanceVote[]
   treasurySpendRequests TreasurySpendRequest[] @relation("TreasuryRequester")
-  entryTokens     EntryToken[]
+  entryTokens           EntryToken[]
 
   @@index([collegeId])
 }
@@ -130,38 +130,38 @@ enum ClubStatus {
 }
 
 model Club {
-  id               String       @id @default(uuid())
-  name             String       @unique
+  id               String     @id @default(uuid())
+  name             String     @unique
   description      String
   category         String
-  status           ClubStatus   @default(PENDING)
+  status           ClubStatus @default(PENDING)
   approvalRemarks  String?
   approvedAt       DateTime?
   rejectedAt       DateTime?
-  prizePoolBalance Float        @default(0.0)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  prizePoolBalance Float      @default(0.0)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  collegeId        String
-  college          College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  coordinatorId    String?
-  coordinator      User?        @relation("CoordinatorClubs", fields: [coordinatorId], references: [id])
-  presidentId      String?
-  president        User?        @relation("PresidentClubs", fields: [presidentId], references: [id])
-  vpId             String?
-  vp               User?        @relation("VPClubs", fields: [vpId], references: [id])
+  coordinatorId String?
+  coordinator   User?   @relation("CoordinatorClubs", fields: [coordinatorId], references: [id])
+  presidentId   String?
+  president     User?   @relation("PresidentClubs", fields: [presidentId], references: [id])
+  vpId          String?
+  vp            User?   @relation("VPClubs", fields: [vpId], references: [id])
 
-  members          ClubMember[]
-  events           Event[]
-  sponsors         Sponsor[]
-  transactions     Transaction[]
-  tasks            Task[]
-  invitations      Invitation[]
-  proposals        GovernanceProposal[]
+  members               ClubMember[]
+  events                Event[]
+  sponsors              Sponsor[]
+  transactions          Transaction[]
+  tasks                 Task[]
+  invitations           Invitation[]
+  proposals             GovernanceProposal[]
   treasurySpendRequests TreasurySpendRequest[]
-  entryTokens      EntryToken[]
+  entryTokens           EntryToken[]
 
   @@index([collegeId])
 }
@@ -172,11 +172,11 @@ model ClubMember {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   clubId     String
   club       Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  customRole String?  // e.g. "Treasurer", "Event Head"
+  customRole String? // e.g. "Treasurer", "Event Head"
   joinedAt   DateTime @default(now())
 
-  collegeId  String
-  college    College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, clubId])
   @@index([collegeId])
@@ -190,38 +190,38 @@ enum EventStatus {
 }
 
 model Event {
-  id           String       @id @default(uuid())
-  title        String
-  description  String
-  category     String?
-  date         DateTime
-  venue        String
-  capacity     Int
-  budget       Float        @default(0.0)
-  status       EventStatus  @default(PENDING)
-  approvalRemarks String?
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
-  isPublic     Boolean      @default(false)
-  posterPrompt String?
-  posterImageUrl String?
+  id                      String      @id @default(uuid())
+  title                   String
+  description             String
+  category                String?
+  date                    DateTime
+  venue                   String
+  capacity                Int
+  budget                  Float       @default(0.0)
+  status                  EventStatus @default(PENDING)
+  approvalRemarks         String?
+  approvedAt              DateTime?
+  rejectedAt              DateTime?
+  isPublic                Boolean     @default(false)
+  posterPrompt            String?
+  posterImageUrl          String?
   treasuryPlaceholderTxId String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 
-  collegeId    String
-  college      College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  clubId       String
-  club         Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  
-  registrations Registration[]
-  transactions  Transaction[]
-  tasks         Task[]
-  proposals     GovernanceProposal[]
+  clubId String
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  registrations         Registration[]
+  transactions          Transaction[]
+  tasks                 Task[]
+  proposals             GovernanceProposal[]
   treasurySpendRequests TreasurySpendRequest[]
-  entryTokens   EntryToken[]
+  entryTokens           EntryToken[]
 
   @@index([collegeId])
 }
@@ -238,8 +238,8 @@ model Registration {
   certificateUrl String?
   registeredAt   DateTime @default(now())
 
-  collegeId      String
-  college        College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@index([collegeId])
@@ -254,24 +254,24 @@ enum SponsorStatus {
 }
 
 model Sponsor {
-  id             String        @id @default(uuid())
-  name           String
-  organization   String
-  email          String?
-  phone          String?
-  status         SponsorStatus @default(PROSPECT)
-  outreachDraft  String?
+  id              String        @id @default(uuid())
+  name            String
+  organization    String
+  email           String?
+  phone           String?
+  status          SponsorStatus @default(PROSPECT)
+  outreachDraft   String?
   lastContactedAt DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  collegeId      String
-  college        College       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  clubId         String
-  club           Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  transactions   Transaction[]
+  clubId       String
+  club         Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([collegeId])
 }
@@ -282,29 +282,29 @@ enum TransactionType {
 }
 
 model Transaction {
-  id             String          @id @default(uuid())
-  amount         Float
-  type           TransactionType
-  description    String
-  date           DateTime        @default(now())
-  
-  txnHash        String?         @unique // Algorand Testnet Transaction Hash
-  walletAddress  String?
-  blockchainActivityId String?   @unique
-  
-  collegeId      String
-  college        College         @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  id          String          @id @default(uuid())
+  amount      Float
+  type        TransactionType
+  description String
+  date        DateTime        @default(now())
+
+  txnHash              String? @unique // Algorand Testnet Transaction Hash
+  walletAddress        String?
+  blockchainActivityId String? @unique
+
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  clubId         String
-  club           Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  eventId        String?
-  event          Event?          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  sponsorId      String?
-  sponsor        Sponsor?        @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
-  blockchainActivity BlockchainActivity? @relation(fields: [blockchainActivityId], references: [id], onDelete: SetNull)
-  treasurySpendRequestId String?  @unique
-  treasurySpendRequest TreasurySpendRequest? @relation(fields: [treasurySpendRequestId], references: [id], onDelete: SetNull)
+  clubId                 String
+  club                   Club                  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId                String?
+  event                  Event?                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sponsorId              String?
+  sponsor                Sponsor?              @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  blockchainActivity     BlockchainActivity?   @relation(fields: [blockchainActivityId], references: [id], onDelete: SetNull)
+  treasurySpendRequestId String?               @unique
+  treasurySpendRequest   TreasurySpendRequest? @relation(fields: [treasurySpendRequestId], references: [id], onDelete: SetNull)
 
   @@index([collegeId])
 }
@@ -325,28 +325,28 @@ model CollegeContract {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  activities   BlockchainActivity[]
+  activities BlockchainActivity[]
 
   @@unique([collegeId, type, network])
   @@index([collegeId])
 }
 
 model BlockchainActivity {
-  id           String              @id @default(uuid())
-  collegeId    String
-  college      College             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
-  contractId   String?
-  contract     CollegeContract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  action       BlockchainActionType
-  txId         String              @unique
+  id            String               @id @default(uuid())
+  collegeId     String
+  college       College              @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  contractId    String?
+  contract      CollegeContract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  action        BlockchainActionType
+  txId          String               @unique
   walletAddress String?
-  note         String?
-  status       BlockchainSyncStatus @default(CONFIRMED)
-  metadata     Json?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  note          String?
+  status        BlockchainSyncStatus @default(CONFIRMED)
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
-  transaction  Transaction?
+  transaction Transaction?
 
   @@index([collegeId])
 }
@@ -389,16 +389,16 @@ model Task {
   status      TaskStatus   @default(TODO)
   createdAt   DateTime     @default(now())
 
-  collegeId   String
-  college     College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Relationships
-  clubId      String
-  club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  eventId     String?
-  event       Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  assigneeId  String
-  assignee    User         @relation("AssignedTo", fields: [assigneeId], references: [id], onDelete: Cascade)
+  clubId     String
+  club       Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId    String?
+  event      Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  assigneeId String
+  assignee   User    @relation("AssignedTo", fields: [assigneeId], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
 }
@@ -408,24 +408,24 @@ model GovernanceProposal {
   title         String
   description   String
   status        GovernanceProposalStatus @default(DRAFT)
-  spendAmount   Float?                   // Amount to release from treasury if EXECUTED
-  deadline      DateTime?                // Voting closes after this
+  spendAmount   Float? // Amount to release from treasury if EXECUTED
+  deadline      DateTime? // Voting closes after this
   forWeight     Float                    @default(0)
   againstWeight Float                    @default(0)
   createdAt     DateTime                 @default(now())
   updatedAt     DateTime                 @updatedAt
 
-  collegeId   String
-  college     College                  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
-  clubId      String
-  club        Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  eventId     String
-  event       Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  proposerId  String
-  proposer    User                     @relation(fields: [proposerId], references: [id], onDelete: Cascade)
+  clubId     String
+  club       Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId    String
+  event      Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  proposerId String
+  proposer   User   @relation(fields: [proposerId], references: [id], onDelete: Cascade)
 
-  votes       GovernanceVote[]
+  votes                GovernanceVote[]
   treasurySpendRequest TreasurySpendRequest?
 
   @@index([collegeId])
@@ -433,52 +433,52 @@ model GovernanceProposal {
 }
 
 model GovernanceVote {
-  id          String              @id @default(uuid())
-  voteFor     Boolean
-  weight      Float               @default(1)
-  txId        String?             // On-chain vote transaction ID
-  createdAt   DateTime            @default(now())
+  id        String   @id @default(uuid())
+  voteFor   Boolean
+  weight    Float    @default(1)
+  txId      String? // On-chain vote transaction ID
+  createdAt DateTime @default(now())
 
-  proposalId  String
-  proposal    GovernanceProposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  voterId     String
-  voter       User                @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  proposalId String
+  proposal   GovernanceProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  voterId    String
+  voter      User               @relation(fields: [voterId], references: [id], onDelete: Cascade)
 
-  collegeId   String
-  college     College             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([proposalId, voterId])
   @@index([collegeId])
 }
 
 model TreasurySpendRequest {
-  id            String                    @id @default(uuid())
-  title         String
-  description   String
-  amount        Float
-  status        TreasurySpendRequestStatus @default(PENDING_VOTE)
-  beneficiaryName String?
+  id                       String                     @id @default(uuid())
+  title                    String
+  description              String
+  amount                   Float
+  status                   TreasurySpendRequestStatus @default(PENDING_VOTE)
+  beneficiaryName          String?
   beneficiaryWalletAddress String?
-  timelockUntil DateTime
-  requestTxId   String?
-  releaseTxId   String?
-  receiptUrl    String?
-  receiptHash   String?
-  receiptFileName String?
-  receiptMimeType String?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  timelockUntil            DateTime
+  requestTxId              String?
+  releaseTxId              String?
+  receiptUrl               String?
+  receiptHash              String?
+  receiptFileName          String?
+  receiptMimeType          String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
 
-  collegeId     String
-  college       College                   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
-  clubId        String
-  club          Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  eventId       String?
-  event         Event?                    @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  requesterId   String
-  requester     User                      @relation("TreasuryRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  proposalId    String                    @unique
-  proposal      GovernanceProposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  collegeId   String
+  college     College            @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  clubId      String
+  club        Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId     String?
+  event       Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  requesterId String
+  requester   User               @relation("TreasuryRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  proposalId  String             @unique
+  proposal    GovernanceProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   releaseTransaction Transaction?
 
@@ -504,8 +504,8 @@ model Invitation {
   customRole String?
   createdAt  DateTime         @default(now())
 
-  collegeId  String
-  college    College          @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, clubId])
   @@index([collegeId])
@@ -520,23 +520,23 @@ enum TokenActionType {
 }
 
 model EntryToken {
-  id              String          @id @default(uuid())
-  tokenId         String?         // ASA Asset ID if applicable
-  txId            String          @unique
-  soulboundTxId   String?         @unique
-  actionType      TokenActionType
-  createdAt       DateTime        @default(now())
+  id            String          @id @default(uuid())
+  tokenId       String? // ASA Asset ID if applicable
+  txId          String          @unique
+  soulboundTxId String?         @unique
+  actionType    TokenActionType
+  createdAt     DateTime        @default(now())
 
-  userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  collegeId       String
-  college         College         @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   // Optional relations based on action context
-  eventId         String?
-  event           Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  clubId          String?
-  club            Club?           @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  clubId  String?
+  club    Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([collegeId])

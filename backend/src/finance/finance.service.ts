@@ -15,6 +15,8 @@ import { AlgorandService } from './algorand.service';
 import { TokenGateService } from './token-gate.service';
 import { PrepareWalletTransactionDto } from './dto/prepare-wallet-transaction.dto';
 import { SubmitWalletTransactionDto } from './dto/submit-wallet-transaction.dto';
+import { forwardRef, Inject } from '@nestjs/common';
+import { TokenService } from '../token/token.service';
 
 interface LedgerTransactionInput {
   amount: number;
@@ -33,6 +35,7 @@ export class FinanceService {
     private readonly prisma: PrismaService,
     private readonly algorand: AlgorandService,
     private readonly tokenGate: TokenGateService,
+    @Inject(forwardRef(() => TokenService)) private readonly tokenService: TokenService,
   ) {}
 
   async logTransaction(data: LedgerTransactionInput) {
@@ -44,12 +47,32 @@ export class FinanceService {
       metadata: this.buildLedgerMetadata(data),
     });
 
-    return this.persistConfirmedLedgerTransaction({
+    const persisted = await this.persistConfirmedLedgerTransaction({
       ...data,
       walletAddress: onChain.sender,
       txId: onChain.txId,
       note: onChain.note,
     });
+
+    if (data.type === TransactionType.CREDIT && data.sponsorId && data.userId) {
+      try {
+        await this.tokenService.mintEntryToken({
+          userId: data.userId,
+          actionType: 'SPONSOR',
+          walletAddress: onChain.sender,
+          clubId: data.clubId,
+          eventId: data.eventId,
+          metadata: {
+            reason: 'sponsor_contribution',
+            sponsorId: data.sponsorId,
+          },
+        });
+      } catch (err) {
+         // handle failure gracefully
+      }
+    }
+
+    return persisted;
   }
 
   async prepareWalletTransaction(data: PrepareWalletTransactionDto) {

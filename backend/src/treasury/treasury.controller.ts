@@ -8,7 +8,8 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, BlockchainActionType } from '@prisma/client';
+import { TokenGate } from '../auth/decorators/token-gate.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
@@ -19,6 +20,7 @@ import {
 import { TreasuryService } from './treasury.service';
 
 @Controller('treasury')
+@TokenGate(BlockchainActionType.MINT)
 export class TreasuryController {
   constructor(private readonly treasuryService: TreasuryService) {}
 

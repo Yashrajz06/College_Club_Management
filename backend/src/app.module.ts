@@ -20,12 +20,14 @@ import { AdminModule } from './admin/admin.module';
 import { CollegeContextMiddleware } from './common/middleware/college-context.middleware';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { TokenGateGuard } from './auth/guards/token-gate.guard';
 import { CollegesModule } from './colleges/colleges.module';
 import { GovernanceModule } from './governance/governance.module';
 import { InsightsModule } from './insights/insights.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [
@@ -33,7 +35,7 @@ import { AttendanceModule } from './attendance/attendance.module';
       global: true,
       middleware: { mount: true },
     }),
-    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, AttendanceModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule
+    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, AttendanceModule, TokenModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule
   ],
   controllers: [AppController],
   providers: [
@@ -45,6 +47,10 @@ import { AttendanceModule } from './attendance/attendance.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TokenGateGuard,
     },
   ],
 })
