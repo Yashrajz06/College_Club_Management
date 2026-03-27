@@ -52,6 +52,15 @@ A high-performance, enterprise-grade platform for managing college clubs, events
 - **Action Triggers**: AI can suggest and draft actual DAO proposals based on data.
 - **Creative Suite**: Generate stunning event posters with SDXL.
 
+### 7. 📊 Intelligence Dashboards (Phase 10)
+- **High-Fidelity Recharts**: Visualize treasury balance timelines, token distribution (PieChart), and attendance fidelity (AreaChart).
+- **Contributor Leaderboard**: Rank users based on verified **Entry Token** participation.
+- **Dynamic Theming**: College-specific branding (brandingColor, brandingLogo) injected globally via `ThemeProvider`.
+
+### 8. ✅ Public Verification
+- **Public Audit**: Anyone can verify treasury payments at `/verify/:assetId` and participation tokens at `/verify/token/:assetId` without logging in.
+- **On-chain Proofs**: Displays immutable Algorand Testnet transaction details and college ownership proofs.
+
 ---
 
 ## ⚙️ Setup & Installation
@@ -95,9 +104,12 @@ A high-performance, enterprise-grade platform for managing college clubs, events
 - **Context Check**: Ask the AI `"What is our current treasury balance?"`. Verify it matches the data in the `InsightsService` context builder.
 - **Action Check**: Ask `"Suggest a proposal to reward our most active members"`. Ensure an interactive **Action Card** appears.
 
-### 🪙 5. Testing Tokens (ASAs)
-- **Debug Tool**: `/my-tokens` page.
 - **Verification**: Use **AlgoExplorer** (Testnet) to search the Asset ID minted. Ensure `clawback` and `freeze` addresses are set correctly (or cleared for soulbounds).
+
+### 📊 6. Testing Analytics & Verification
+- **Dashboard**: Navigate to `/analytics`. Verify charts load correctly.
+- **Theming**: Update `brandingColor` in `CollegeConfig` via DB. Refresh app and check if colors update via `--brand-primary`.
+- **Public Verify**: Open a new private/incognito tab. Visit `/verify/TOKEN_ASA_ID`. Confirm it displays verification details without a login.
 
 ---
 
@@ -111,7 +123,8 @@ A high-performance, enterprise-grade platform for managing college clubs, events
 ---
 
 ## 📜 Development Status
-- **Phase 1-12**: Completed (Auth, Clubs, Finance, Attendance, AI, Gating).
+- **Phase 1-12**: Completed (Auth, Clubs, Finance, Attendance, AI, Gating, Analytics, Public Verification, High-Fidelity UX).
+- **Architecture**: Enterprise-grade multi-tenant NestJS backend with local Ollama + SDXL intelligence.
 - **Current Core**: Production-ready for Algorand Testnet.
 
 ---

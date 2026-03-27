@@ -28,6 +28,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { TokenModule } from './token/token.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { TokenModule } from './token/token.module';
       global: true,
       middleware: { mount: true },
     }),
-    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, AttendanceModule, TokenModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule
+    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, AttendanceModule, TokenModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule, AnalyticsModule
   ],
   controllers: [AppController],
   providers: [

@@ -88,6 +88,23 @@ export class InsightsService {
       createdAt: new Date().toISOString(),
     };
 
+    // Persist to local AnalyticsEvent table
+    try {
+      await this.prisma.analyticsEvent.create({
+        data: {
+          collegeId,
+          entityType: input.entityType,
+          action: input.action,
+          entityId: input.entityId,
+          payload: (input.payload as any) ?? undefined,
+        },
+      });
+    } catch (error) {
+      this.logger.debug(
+        `Local analytics persist skipped for ${input.entityType}:${input.entityId} (${String(error)})`,
+      );
+    }
+
     try {
       const client = this.supabase.getClient();
       await Promise.allSettled([

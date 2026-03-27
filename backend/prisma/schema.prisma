@@ -30,6 +30,7 @@ model College {
   governanceVotes       GovernanceVote[]
   treasurySpendRequests TreasurySpendRequest[]
   entryTokens           EntryToken[]
+  analyticsEvents       AnalyticsEvent[]
 }
 
 model CollegeConfig {
@@ -541,4 +542,19 @@ model EntryToken {
   @@index([userId])
   @@index([collegeId])
   @@index([actionType])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  collegeId  String
+  college    College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  entityType String
+  action     String
+  entityId   String
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([collegeId])
+  @@index([entityType])
+  @@index([createdAt])
 }
