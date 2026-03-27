@@ -4,40 +4,46 @@ export declare class TaskController {
     private readonly taskService;
     constructor(taskService: TaskService);
     createTask(req: any, body: any): Promise<{
+        collegeId: string;
         id: string;
         createdAt: Date;
-        description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        clubId: string;
+        description: string;
         title: string;
+        clubId: string;
         deadline: Date | null;
+        eventId: string | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
     }>;
     updateStatus(req: any, id: string, status: TaskStatus): Promise<{
+        collegeId: string;
         id: string;
         createdAt: Date;
-        description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        clubId: string;
+        description: string;
         title: string;
+        clubId: string;
         deadline: Date | null;
+        eventId: string | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
     }>;
     getClubTasks(req: any, clubId: string): Promise<({
         assignee: {
-            email: string;
             name: string;
+            email: string;
         };
     } & {
+        collegeId: string;
         id: string;
         createdAt: Date;
-        description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        clubId: string;
+        description: string;
         title: string;
+        clubId: string;
         deadline: Date | null;
+        eventId: string | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
     })[]>;
@@ -46,13 +52,15 @@ export declare class TaskController {
             name: string;
         };
     } & {
+        collegeId: string;
         id: string;
         createdAt: Date;
-        description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        clubId: string;
+        description: string;
         title: string;
+        clubId: string;
         deadline: Date | null;
+        eventId: string | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
     })[]>;

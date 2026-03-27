@@ -11,40 +11,161 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SponsorService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const nestjs_cls_1 = require("nestjs-cls");
+const ai_service_1 = require("../ai/ai.service");
+const insights_service_1 = require("../insights/insights.service");
+const prisma_service_1 = require("../prisma/prisma.service");
 let SponsorService = class SponsorService {
     prisma;
-    constructor(prisma) {
+    cls;
+    aiService;
+    insights;
+    constructor(prisma, cls, aiService, insights) {
         this.prisma = prisma;
+        this.cls = cls;
+        this.aiService = aiService;
+        this.insights = insights;
     }
     async addSponsor(data) {
-        return this.prisma.sponsor.create({
+        await this.assertClubOwnership(data.clubId, data.requesterId);
+        const sponsor = await this.prisma.sponsor.create({
             data: {
-                ...data,
-                status: client_1.SponsorStatus.PROSPECT
-            }
+                collegeId: this.getCurrentCollegeIdOrThrow(),
+                name: data.name,
+                organization: data.organization,
+                email: data.email,
+                phone: data.phone,
+                clubId: data.clubId,
+                status: client_1.SponsorStatus.PROSPECT,
+            },
         });
+        await this.insights.recordSyncEvent({
+            entityType: 'sponsor',
+            action: 'created',
+            entityId: sponsor.id,
+            payload: {
+                clubId: sponsor.clubId,
+            },
+        });
+        return sponsor;
     }
-    async updateStatus(sponsorId, status) {
-        return this.prisma.sponsor.update({
+    async updateStatus(sponsorId, status, requesterId) {
+        const sponsor = await this.prisma.sponsor.findFirst({
             where: { id: sponsorId },
-            data: { status }
+            select: {
+                id: true,
+                clubId: true,
+            },
         });
+        if (!sponsor) {
+            throw new common_1.NotFoundException('Sponsor not found');
+        }
+        await this.assertClubOwnership(sponsor.clubId, requesterId);
+        const updated = await this.prisma.sponsor.update({
+            where: { id: sponsorId },
+            data: {
+                status,
+                lastContactedAt: status === client_1.SponsorStatus.CONTACTED ? new Date() : undefined,
+            },
+        });
+        await this.insights.recordSyncEvent({
+            entityType: 'sponsor',
+            action: 'status_updated',
+            entityId: updated.id,
+            payload: {
+                status: updated.status,
+            },
+        });
+        return updated;
+    }
+    async generateOutreachDraft(sponsorId, eventId, requesterId) {
+        const sponsor = await this.prisma.sponsor.findFirst({
+            where: { id: sponsorId },
+            select: { id: true, clubId: true },
+        });
+        if (!sponsor) {
+            throw new common_1.NotFoundException('Sponsor not found');
+        }
+        await this.assertClubOwnership(sponsor.clubId, requesterId);
+        const draft = await this.aiService.draftSponsorMessage(eventId, sponsorId);
+        await this.prisma.sponsor.update({
+            where: { id: sponsorId },
+            data: {
+                outreachDraft: draft.message,
+            },
+        });
+        await this.insights.recordSyncEvent({
+            entityType: 'sponsor',
+            action: 'outreach_drafted',
+            entityId: sponsorId,
+            payload: {
+                eventId,
+            },
+        });
+        return draft;
     }
     async getSponsorsForClub(clubId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.sponsor.findMany({
-            where: { clubId },
+            where: { clubId, collegeId },
             orderBy: { createdAt: 'desc' },
             include: {
-                transactions: { select: { amount: true, date: true } }
-            }
+                transactions: { select: { amount: true, date: true } },
+            },
         });
+    }
+    async deleteSponsor(sponsorId, requesterId) {
+        const sponsor = await this.prisma.sponsor.findFirst({
+            where: { id: sponsorId },
+            select: {
+                id: true,
+                clubId: true,
+            },
+        });
+        if (!sponsor)
+            throw new common_1.NotFoundException('Sponsor not found');
+        await this.assertClubOwnership(sponsor.clubId, requesterId);
+        const deleted = await this.prisma.sponsor.delete({
+            where: { id: sponsorId },
+        });
+        await this.insights.recordSyncEvent({
+            entityType: 'sponsor',
+            action: 'deleted',
+            entityId: deleted.id,
+        });
+        return deleted;
+    }
+    async assertClubOwnership(clubId, requesterId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const club = await this.prisma.club.findFirst({
+            where: { id: clubId, collegeId },
+            select: {
+                presidentId: true,
+                vpId: true,
+            },
+        });
+        if (!club) {
+            throw new common_1.NotFoundException('Club not found');
+        }
+        if (club.presidentId !== requesterId && club.vpId !== requesterId) {
+            throw new common_1.ForbiddenException('Not authorized to manage sponsors for this club');
+        }
+    }
+    getCurrentCollegeIdOrThrow() {
+        const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+        if (!collegeId) {
+            throw new common_1.NotFoundException('College context not available');
+        }
+        return collegeId;
     }
 };
 exports.SponsorService = SponsorService;
 exports.SponsorService = SponsorService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        nestjs_cls_1.ClsService,
+        ai_service_1.AiService,
+        insights_service_1.InsightsService])
 ], SponsorService);
 //# sourceMappingURL=sponsor.service.js.map

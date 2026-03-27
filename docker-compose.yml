@@ -1,19 +1,21 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  # 1. PostgreSQL (for Prisma)
   postgres:
-    image: postgres:15-alpine
-    container_name: ccm_postgres
+    image: postgres:16-alpine
+    container_name: college-club-postgres
     environment:
-      POSTGRES_USER: user
+      POSTGRES_DB: college_club
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: college_club_db
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
+    restart: unless-stopped
 
+  # 2. Redis (for caching/real-time)
   redis:
     image: redis:7-alpine
     container_name: ccm_redis
@@ -23,6 +25,7 @@ services:
       - redis_data:/data
     restart: always
 
+  # 3. MinIO (for file storage)
   minio:
     image: minio/minio:latest
     container_name: ccm_minio
@@ -36,6 +39,61 @@ services:
     volumes:
       - minio_data:/data
     restart: always
+
+  # 4. Backend (NestJS)
+  backend:
+    build: ./backend
+    container_name: college-club-backend
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/college_club
+      - ALGORAND_NETWORK=${ALGORAND_NETWORK:-testnet}
+      - ALGORAND_ALGOD_URL=${ALGORAND_ALGOD_URL:-https://testnet-api.algonode.cloud}
+      - ALGORAND_ALGOD_PORT=${ALGORAND_ALGOD_PORT:-}
+      - ALGORAND_ALGOD_TOKEN=${ALGORAND_ALGOD_TOKEN:-}
+      - ALGORAND_INDEXER_URL=${ALGORAND_INDEXER_URL:-https://testnet-idx.4160.nodely.dev}
+      - ALGORAND_INDEXER_PORT=${ALGORAND_INDEXER_PORT:-}
+      - ALGORAND_INDEXER_TOKEN=${ALGORAND_INDEXER_TOKEN:-}
+      - ALGORAND_EXPLORER_URL=${ALGORAND_EXPLORER_URL:-https://testnet.explorer.perawallet.app}
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # 5. Frontend (React Vite)
+  frontend:
+    build: ./frontend
+    container_name: college-club-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_BACKEND_URL=http://localhost:3000
+      - VITE_ALGORAND_NETWORK=${ALGORAND_NETWORK:-testnet}
+      - VITE_ALGORAND_EXPLORER_URL=${ALGORAND_EXPLORER_URL:-https://testnet.explorer.perawallet.app}
+
+  # 6. Local docker node for quick local testing.
+  # For the full AlgoKit LocalNet stack, use `backend/npm run algorand:localnet:start`
+  # on the host and point the env vars above at localhost:4001 / localhost:8980.
+  algorand-localnet:
+    image: algorand/algod:latest
+    container_name: algorand-localnet
+    profiles: ["algorand-localnet"]
+    ports:
+      - "4001:4001" # Algod
+      - "4002:4002" # KMD
+      - "9392:9392" # Lora / local explorer
+    environment:
+      - NETWORK=localnet
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -1,114 +1,154 @@
-import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+} from '@nestjs/common';
+import { EventStatus, Role } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { EventService } from './event.service';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '@prisma/client';
 
 @Controller('event')
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 
-  // ─── PRESIDENT/VP routes (JWT required) ─────────────────────────────────────
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP)
-  async draftEvent(@Body() body: any) {
+  async createEvent(@Request() req: any, @Body() body: any) {
     return this.eventService.createEvent({
-      ...body,
+      title: body.title,
+      description: body.description,
+      category: body.category,
       date: new Date(body.date),
+      venue: body.venue,
+      capacity: Number(body.capacity),
+      budget: body.budget ? Number(body.budget) : 0,
+      clubId: body.clubId,
+      isPublic: Boolean(body.isPublic),
+      requesterId: req.user.userId,
     });
   }
 
-  // ─── COORDINATOR routes ──────────────────────────────────────────────────────
+  @Patch(':id')
+  @Roles(Role.PRESIDENT, Role.VP, Role.ADMIN)
+  async updateEvent(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: any,
+  ) {
+    return this.eventService.updateEvent(id, req.user.userId, {
+      ...(body.title !== undefined ? { title: body.title } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.category !== undefined ? { category: body.category } : {}),
+      ...(body.date ? { date: new Date(body.date) } : {}),
+      ...(body.venue !== undefined ? { venue: body.venue } : {}),
+      ...(body.capacity !== undefined ? { capacity: Number(body.capacity) } : {}),
+      ...(body.budget !== undefined ? { budget: Number(body.budget) } : {}),
+      ...(body.isPublic !== undefined ? { isPublic: Boolean(body.isPublic) } : {}),
+    });
+  }
+
+  @Delete(':id')
+  @Roles(Role.PRESIDENT, Role.VP, Role.ADMIN)
+  async deleteEvent(@Param('id') id: string, @Request() req: any) {
+    return this.eventService.deleteEvent(id, req.user.userId);
+  }
+
   @Get('pending-approvals')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.COORDINATOR)
   async getPending(@Request() req: any) {
     return this.eventService.getPendingApprovals(req.user.userId);
   }
 
   @Patch(':id/approve')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.COORDINATOR)
-  async approveEvent(@Param('id') id: string, @Body('remarks') remarks: string) {
-    return this.eventService.approveEvent(id, remarks);
+  async approveEvent(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('remarks') remarks?: string,
+  ) {
+    return this.eventService.approveEvent(id, req.user.userId, remarks);
   }
 
   @Patch(':id/reject')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.COORDINATOR)
-  async rejectEvent(@Param('id') id: string, @Body('remarks') remarks: string) {
-    return this.eventService.rejectEvent(id, remarks);
+  async rejectEvent(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('remarks') remarks?: string,
+  ) {
+    return this.eventService.rejectEvent(id, req.user.userId, remarks);
   }
 
-  // ─── PUBLIC routes (no auth needed) ─────────────────────────────────────────
+  @Public()
   @Get('public')
   async getPublicEvents() {
     return this.eventService.getPublicEvents();
   }
 
-  // GET /event/:id  – single public event
-  @Get(':id')
-  async getEventById(@Param('id') id: string) {
-    return this.eventService.getEventById(id);
+  @Get('club/:clubId')
+  async getClubEvents(@Param('clubId') clubId: string) {
+    return this.eventService.getClubEvents(clubId);
   }
 
-  // ─── REGISTRATION ────────────────────────────────────────────────────────────
-  // Authenticated member register
   @Post(':id/register')
-  @UseGuards(AuthGuard('jwt'))
   async register(@Param('id') id: string, @Request() req: any) {
     return this.eventService.registerForEvent(req.user.userId, id);
   }
 
-  // Guest register (no auth)
+  @Public()
   @Post(':id/register-guest')
   async guestRegister(@Param('id') id: string, @Body() body: any) {
     return this.eventService.registerGuest(id, body);
   }
 
-  // ─── ATTENDANCE (President / Coordinator) ────────────────────────────────────
   @Get(':id/registrations')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
   async getRegistrations(@Param('id') id: string) {
     return this.eventService.getEventRegistrations(id);
   }
 
   @Patch(':id/attendance')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR)
-  async markAttendance(@Param('id') id: string, @Body() body: { registrationId: string; attended: boolean }) {
+  async markAttendance(
+    @Param('id') id: string,
+    @Body() body: { registrationId: string; attended: boolean },
+  ) {
     return this.eventService.markAttendance(body.registrationId, body.attended);
   }
 
   @Post('attendance/qr')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR)
   async markAttendanceByQR(@Body() body: { qrCode: string }) {
     return this.eventService.markAttendanceByQR(body.qrCode);
   }
 
   @Patch(':id/conclude')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP)
-  async concludeEvent(@Param('id') id: string) {
-    return this.eventService.concludeEvent(id);
+  async concludeEvent(@Param('id') id: string, @Request() req: any) {
+    return this.eventService.concludeEvent(id, req.user.userId);
   }
 
-  // ─── EVENT PROMOTION (make public) ────────────────────────────────────────
   @Get('publishable')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP)
   async getPublishable(@Request() req: any) {
     return this.eventService.getPublishableEvents(req.user.userId);
   }
 
   @Patch(':id/public')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.PRESIDENT, Role.VP)
   async makePublic(@Param('id') id: string, @Request() req: any) {
     return this.eventService.makeEventPublic(id, req.user.userId);
+  }
+
+  @Public()
+  @Get(':id')
+  async getEventById(@Param('id') id: string) {
+    return this.eventService.getEventById(id);
   }
 }

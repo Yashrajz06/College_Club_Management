@@ -1,9 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { InsightsService } from '../insights/insights.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { GovernanceService } from '../governance/governance.service';
+import { AlgorandService } from '../finance/algorand.service';
+import { BadRequestException } from '@nestjs/common';
+import { BlockchainActionType, CollegeContractType } from '@prisma/client';
 
 @Injectable()
 export class AiService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly insights: InsightsService,
+    private readonly supabase: SupabaseService,
+    private readonly governance: GovernanceService,
+    private readonly algorand: AlgorandService,
+  ) { }
 
   // ─────────────────────────────────────────────
   // 1. SPONSOR OUTREACH — actual Ollama call
@@ -162,6 +174,65 @@ export class AiService {
     }
   }
 
+  async generateEventPoster(eventId: string, options?: { mood?: string; tagline?: string }) {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId },
+      include: {
+        club: {
+          select: {
+            name: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    const prompt = [
+      `Create a poster-ready event background for "${event.title}"`,
+      `club: ${event.club.name}`,
+      `venue: ${event.venue}`,
+      options?.mood ? `visual mood: ${options.mood}` : null,
+      options?.tagline ? `tagline inspiration: ${options.tagline}` : null,
+      'high contrast composition, campus event design, no text baked into the image',
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const poster = await this.generatePosterBackground(prompt);
+    const persistedImageUrl = await this.persistPosterAsset(
+      event.id,
+      poster.imageUrl,
+    );
+
+    // @ts-ignore
+    await this.prisma.event.update({
+      where: { id: event.id },
+      data: {
+        posterPrompt: prompt,
+        posterImageUrl: persistedImageUrl,
+      },
+    });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'poster',
+      action: 'generated',
+      entityId: event.id,
+      payload: {
+        source: poster.source,
+      },
+    });
+
+    return {
+      ...poster,
+      imageUrl: persistedImageUrl,
+      prompt,
+    };
+  }
+
   // ─────────────────────────────────────────────
   // 3. GUEST CERTIFICATES — proper implementation
   // ─────────────────────────────────────────────
@@ -233,6 +304,184 @@ export class AiService {
       return response.ok;
     } catch {
       return false;
+    }
+  }
+
+  async getAssistantContext() {
+    return this.insights.getAssistantContext();
+  }
+
+  // ─────────────────────────────────────────────
+  // 5. AI CHAT ASSISTANT
+  // ─────────────────────────────────────────────
+  async chatWithAssistant(
+    userId: string,
+    prompt: string,
+    history: { role: string; content: string }[] = [],
+  ) {
+    const collegeId = this.insights.getCurrentCollegeIdOrThrow();
+
+    // Fetch the enriched College context
+    const context = await this.insights.getAssistantContext();
+
+    const systemPrompt = `
+      You are the "Campus Club AI Chief of Staff", an expert data-driven assistant for college clubs.
+      You have access to the following real-time metric context for the current college:
+      ${JSON.stringify(context, null, 2)}
+
+      Your job is to answer the user's question, summarize data, or give strategic advice.
+      Keep your answer concise, engaging, and highly specific to the provided metrics.
+
+      ** IMPORTANT INSTRUCTION FOR SUGGESTIONS **
+      If the user specifically asks you to suggest an action (or you strongly recommend one based on data), you must output a JSON block at the very end of your response, wrapped exactly in \`\`\`json ... \`\`\`.
+      
+      Supported Actions:
+      1. CREATE_PROPOSAL
+         Format required in JSON payload: { "title": "...", "description": "...", "amount": number, "timelockHours": number, "eventId": "matched_from_context" }
+      2. MINT_TOKEN
+         Format required in JSON payload: { "category": 7, "walletAddress": "target_user_wallet", "reason": "why they deserve it" }
+
+      You must only output the JSON block if an action is strongly warranted or requested. Otherwise, just output normal text.
+    `;
+
+    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: prompt },
+    ];
+
+    let fullText = '';
+    try {
+      const response = await fetch(ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3',
+          messages,
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
+
+      const data = await response.json();
+      fullText = data.message?.content || '';
+    } catch (error) {
+      console.error('Ollama chat failed:', error);
+      throw new BadRequestException('AI is currently unavailable. Ensure Ollama is running.');
+    }
+
+    // Parse actionable JSON if present
+    let reply = fullText;
+    let suggestedAction = null;
+
+    const jsonMatch = fullText.match(/```json\n([\s\S]*?)\n```/);
+    if (jsonMatch) {
+      try {
+        const potentialAction = JSON.parse(jsonMatch[1]);
+        if (potentialAction.type && potentialAction.payload) {
+          suggestedAction = potentialAction;
+        }
+      } catch (e) {
+        // parsing failed, ignore suggestion
+      }
+      reply = fullText.replace(/```json\n[\s\S]*?\n```/, '').trim();
+    }
+
+    // Log the interaction
+    await this.insights.recordSyncEvent({
+      entityType: 'system' as any,
+      action: suggestedAction ? 'suggestion_provided' : 'chatted',
+      entityId: userId, // use userId to track who asked
+      payload: { prompt, suggestedActionType: suggestedAction?.type },
+    });
+
+    return { reply, suggestedAction };
+  }
+
+  // ─────────────────────────────────────────────
+  // 6. EXECUTE SCRIPT ACTION
+  // ─────────────────────────────────────────────
+  async executeSuggestedAction(userId: string, type: 'CREATE_PROPOSAL' | 'MINT_TOKEN', payload: any) {
+    const collegeId = this.insights.getCurrentCollegeIdOrThrow();
+
+    if (type === 'CREATE_PROPOSAL') {
+      if (!payload.eventId) {
+        throw new BadRequestException('eventId is required to create a proposal.');
+      }
+      return this.governance.createProposal({
+        proposerId: userId,
+        eventId: payload.eventId,
+        title: payload.title || 'AI Suggested Proposal',
+        description: payload.description || 'Generated by AI Chief of Staff',
+        spendAmount: payload.amount || 0,
+        deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+    }
+
+    if (type === 'MINT_TOKEN') {
+      if (!payload.walletAddress) {
+        throw new BadRequestException('walletAddress is required for minting.');
+      }
+      
+      const categoryMap: Record<number, CollegeContractType> = {
+        7: CollegeContractType.ENTRY_TOKEN,
+      };
+      
+      const contractType = categoryMap[payload.category || 7];
+      if (!contractType) throw new BadRequestException('Unsupported token category.');
+
+      return this.algorand.triggerLifecycleAction({
+        action: BlockchainActionType.MINT,
+        contractType,
+        entityId: userId,
+        walletAddress: payload.walletAddress,
+        metadata: {
+          reason: payload.reason || 'AI Chief of Staff recommendation',
+          source: 'ai_studio',
+        },
+      });
+    }
+
+    throw new BadRequestException('Unknown action type.');
+  }
+
+  private async persistPosterAsset(eventId: string, imageUrl: string) {
+    if (!imageUrl.startsWith('data:image/')) {
+      return imageUrl;
+    }
+
+    try {
+      const [, mimeType, data] =
+        imageUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/) || [];
+
+      if (!mimeType || !data) {
+        return imageUrl;
+      }
+
+      const extension = mimeType.split('/')[1] || 'png';
+      const path = `${this.insights.getCurrentCollegeIdOrThrow()}/events/${eventId}/poster.${extension}`;
+
+      const client = this.supabase.getClient();
+      const bytes = Buffer.from(data, 'base64');
+
+      await client.storage
+        .from(process.env.SUPABASE_POSTER_BUCKET || 'ai-posters')
+        .upload(path, bytes, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      const { data: publicUrlData } = client.storage
+        .from(process.env.SUPABASE_POSTER_BUCKET || 'ai-posters')
+        .getPublicUrl(path);
+
+      return publicUrlData.publicUrl || imageUrl;
+    } catch (error) {
+      console.warn('Supabase poster upload failed, using raw image data', error);
+      return imageUrl;
     }
   }
 }

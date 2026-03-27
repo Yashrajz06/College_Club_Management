@@ -30,6 +30,12 @@ let AiController = class AiController {
     async generatePoster(prompt) {
         return this.aiService.generatePosterBackground(prompt);
     }
+    async generateEventPoster(eventId, mood, tagline) {
+        return this.aiService.generateEventPoster(eventId, { mood, tagline });
+    }
+    async getAssistantContext() {
+        return this.aiService.getAssistantContext();
+    }
 };
 exports.AiController = AiController;
 __decorate([
@@ -49,6 +55,23 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AiController.prototype, "generatePoster", null);
+__decorate([
+    (0, common_1.Get)('generate-event-poster'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
+    __param(0, (0, common_1.Query)('eventId')),
+    __param(1, (0, common_1.Query)('mood')),
+    __param(2, (0, common_1.Query)('tagline')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "generateEventPoster", null);
+__decorate([
+    (0, common_1.Get)('assistant-context'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP, client_1.Role.COORDINATOR, client_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "getAssistantContext", null);
 exports.AiController = AiController = __decorate([
     (0, common_1.Controller)('ai'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),

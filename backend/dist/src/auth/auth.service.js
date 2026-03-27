@@ -41,19 +41,28 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const prisma_service_1 = require("../prisma/prisma.service");
+const supabase_service_1 = require("../supabase/supabase.service");
 const bcrypt = __importStar(require("bcrypt"));
 const client_1 = require("@prisma/client");
-let AuthService = class AuthService {
+const algorand_service_1 = require("../finance/algorand.service");
+const client_2 = require("@prisma/client");
+let AuthService = AuthService_1 = class AuthService {
     prisma;
     jwtService;
-    constructor(prisma, jwtService) {
+    supabase;
+    algorand;
+    logger = new common_1.Logger(AuthService_1.name);
+    constructor(prisma, jwtService, supabase, algorand) {
         this.prisma = prisma;
         this.jwtService = jwtService;
+        this.supabase = supabase;
+        this.algorand = algorand;
     }
     async register(dto) {
         const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -72,8 +81,23 @@ let AuthService = class AuthService {
                 throw new common_1.UnauthorizedException('Invalid registration secret code');
             }
         }
+        const college = dto.collegeId
+            ? await this.prisma.college.findFirst({
+                where: { id: dto.collegeId },
+                select: { id: true, domain: true },
+            })
+            : await this.prisma.college.findFirst({
+                where: {
+                    domain: dto.email.split('@')[1]?.toLowerCase(),
+                },
+                select: { id: true, domain: true },
+            });
+        if (!college) {
+            throw new common_1.BadRequestException('No college matched this registration. Select a college first or use an email with a registered college domain.');
+        }
         const user = await this.prisma.user.create({
             data: {
+                collegeId: college.id,
                 name: dto.name,
                 email: dto.email,
                 passwordHash,
@@ -84,6 +108,7 @@ let AuthService = class AuthService {
             }
         });
         const { passwordHash: _, ...result } = user;
+        this.logger.log(`[Analytics Sync] New user registered: ${user.id} role=${role}`);
         return this.login(result);
     }
     async validateUser(email, pass) {
@@ -98,7 +123,8 @@ let AuthService = class AuthService {
         return null;
     }
     async login(user) {
-        const payload = { email: user.email, sub: user.id, role: user.role };
+        const payload = { email: user.email, sub: user.id, role: user.role, collegeId: user.collegeId };
+        this.logger.log(`[Analytics Sync] User login: ${user.id}`);
         return {
             access_token: this.jwtService.sign(payload),
             refresh_token: this.jwtService.sign(payload, {
@@ -109,7 +135,9 @@ let AuthService = class AuthService {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                collegeId: user.collegeId,
+                walletAddress: user.walletAddress || null,
             }
         };
     }
@@ -149,11 +177,77 @@ let AuthService = class AuthService {
         });
         return { message: 'Password set successfully. You can now log in.' };
     }
+    async getProfile(userId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true, name: true, email: true, role: true, walletAddress: true,
+                studentId: true, department: true, year: true, isVerified: true,
+                collegeId: true, createdAt: true,
+            },
+        });
+        if (!user)
+            throw new common_1.BadRequestException('User not found');
+        return user;
+    }
+    async updateProfile(userId, data) {
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                ...(data.name && { name: data.name }),
+                ...(data.department && { department: data.department }),
+                ...(data.year && { year: data.year }),
+            },
+            select: {
+                id: true, name: true, email: true, role: true, walletAddress: true,
+                studentId: true, department: true, year: true,
+            },
+        });
+    }
+    async connectWallet(userId, walletAddress) {
+        try {
+            const sb = this.supabase.getClient();
+            await sb.from('User').update({ walletAddress }).eq('id', userId);
+        }
+        catch {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { walletAddress },
+            });
+        }
+        await this.algorand.triggerLifecycleAction({
+            action: client_2.BlockchainActionType.MINT,
+            contractType: client_2.CollegeContractType.ENTRY_TOKEN,
+            entityId: userId,
+            walletAddress,
+            metadata: {
+                reason: 'profile_setup',
+                userId,
+                targetWalletAddress: walletAddress,
+            },
+        });
+        return { message: 'Wallet connected', walletAddress };
+    }
+    async disconnectWallet(userId) {
+        try {
+            const sb = this.supabase.getClient();
+            await sb.from('User').update({ walletAddress: null }).eq('id', userId);
+        }
+        catch {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { walletAddress: null },
+            });
+        }
+        return { message: 'Wallet disconnected' };
+    }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        supabase_service_1.SupabaseService,
+        algorand_service_1.AlgorandService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

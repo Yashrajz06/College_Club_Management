@@ -1,46 +1,106 @@
-import { PrismaService } from '../prisma/prisma.service';
 import { TransactionType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { AlgorandService } from './algorand.service';
+import { TokenGateService } from './token-gate.service';
+import { PrepareWalletTransactionDto } from './dto/prepare-wallet-transaction.dto';
+import { SubmitWalletTransactionDto } from './dto/submit-wallet-transaction.dto';
+interface LedgerTransactionInput {
+    amount: number;
+    type: TransactionType;
+    description: string;
+    clubId: string;
+    eventId?: string;
+    sponsorId?: string;
+    userId?: string;
+    walletAddress?: string;
+}
 export declare class FinanceService {
-    private prisma;
-    private algorand;
-    constructor(prisma: PrismaService, algorand: AlgorandService);
-    logTransaction(data: {
-        amount: number;
-        type: TransactionType;
-        description: string;
-        clubId: string;
-        eventId?: string;
-        sponsorId?: string;
-        userId: string;
-    }): Promise<{
+    private readonly prisma;
+    private readonly algorand;
+    private readonly tokenGate;
+    constructor(prisma: PrismaService, algorand: AlgorandService, tokenGate: TokenGateService);
+    logTransaction(data: LedgerTransactionInput): Promise<{
+        event: {
+            title: string;
+        } | null;
+        sponsor: {
+            name: string;
+            organization: string;
+        } | null;
+    } & {
+        collegeId: string;
         id: string;
-        description: string;
-        clubId: string;
-        date: Date;
-        amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
-        txnHash: string | null;
+        walletAddress: string | null;
+        amount: number;
+        description: string;
+        date: Date;
+        clubId: string;
         eventId: string | null;
+        txnHash: string | null;
+        blockchainActivityId: string | null;
         sponsorId: string | null;
+        treasurySpendRequestId: string | null;
+    }>;
+    prepareWalletTransaction(data: PrepareWalletTransactionDto): Promise<{
+        network: "testnet" | "localnet";
+        explorerBaseUrl: string;
+        note: string;
+        txns: {
+            txn: string;
+            message: string;
+        }[];
+    }>;
+    submitWalletTransaction(data: SubmitWalletTransactionDto): Promise<{
+        event: {
+            title: string;
+        } | null;
+        sponsor: {
+            name: string;
+            organization: string;
+        } | null;
+    } & {
+        collegeId: string;
+        id: string;
+        type: import(".prisma/client").$Enums.TransactionType;
+        walletAddress: string | null;
+        amount: number;
+        description: string;
+        date: Date;
+        clubId: string;
+        eventId: string | null;
+        txnHash: string | null;
+        blockchainActivityId: string | null;
+        sponsorId: string | null;
+        treasurySpendRequestId: string | null;
     }>;
     getClubTransactions(clubId: string): Promise<({
         event: {
             title: string;
         } | null;
         sponsor: {
+            name: string;
             organization: string;
         } | null;
     } & {
+        collegeId: string;
         id: string;
-        description: string;
-        clubId: string;
-        date: Date;
-        amount: number;
         type: import(".prisma/client").$Enums.TransactionType;
-        txnHash: string | null;
+        walletAddress: string | null;
+        amount: number;
+        description: string;
+        date: Date;
+        clubId: string;
         eventId: string | null;
+        txnHash: string | null;
+        blockchainActivityId: string | null;
         sponsorId: string | null;
+        treasurySpendRequestId: string | null;
     })[]>;
     getClubBalance(clubId: string): Promise<number>;
+    private persistConfirmedLedgerTransaction;
+    private validateLedgerTransactionInput;
+    private assertClubExists;
+    private buildLedgerMetadata;
 }
+export {};

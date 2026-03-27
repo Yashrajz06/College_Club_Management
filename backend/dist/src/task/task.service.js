@@ -13,10 +13,13 @@ exports.TaskService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const nestjs_cls_1 = require("nestjs-cls");
 let TaskService = class TaskService {
     prisma;
-    constructor(prisma) {
+    cls;
+    constructor(prisma, cls) {
         this.prisma = prisma;
+        this.cls = cls;
     }
     async createTask(data) {
         const club = await this.prisma.club.findUnique({
@@ -37,6 +40,7 @@ let TaskService = class TaskService {
         }
         return this.prisma.task.create({
             data: {
+                collegeId: this.getCurrentCollegeIdOrThrow(),
                 title: data.title,
                 description: data.description,
                 deadline: data.deadline,
@@ -45,6 +49,21 @@ let TaskService = class TaskService {
                 assigneeId: data.assigneeId,
                 status: client_1.TaskStatus.TODO
             }
+        });
+    }
+    async createSystemTask(data) {
+        return this.prisma.task.create({
+            data: {
+                collegeId: this.getCurrentCollegeIdOrThrow(),
+                title: data.title,
+                description: data.description,
+                deadline: data.deadline,
+                priority: data.priority ?? client_1.TaskPriority.MEDIUM,
+                clubId: data.clubId,
+                eventId: data.eventId,
+                assigneeId: data.assigneeId,
+                status: client_1.TaskStatus.TODO,
+            },
         });
     }
     async updateTaskStatus(taskId, status, requesterId) {
@@ -90,10 +109,18 @@ let TaskService = class TaskService {
             orderBy: { createdAt: 'desc' }
         });
     }
+    getCurrentCollegeIdOrThrow() {
+        const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+        if (!collegeId) {
+            throw new common_1.BadRequestException('College context not available');
+        }
+        return collegeId;
+    }
 };
 exports.TaskService = TaskService;
 exports.TaskService = TaskService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        nestjs_cls_1.ClsService])
 ], TaskService);
 //# sourceMappingURL=task.service.js.map

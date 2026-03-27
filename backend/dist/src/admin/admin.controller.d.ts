@@ -11,10 +11,10 @@ export declare class AdminController {
     }>;
     getCoordinators(): Promise<{
         id: string;
-        email: string;
-        name: string;
-        isVerified: boolean;
         createdAt: Date;
+        name: string;
+        email: string;
+        isVerified: boolean;
         coordinatedClubs: {
             id: string;
             name: string;

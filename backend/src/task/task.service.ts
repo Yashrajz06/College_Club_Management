@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskStatus, TaskPriority } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class TaskService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly cls: ClsService,
+  ) {}
 
   async createTask(data: { 
     title: string; 
@@ -34,6 +38,7 @@ export class TaskService {
 
     return this.prisma.task.create({
       data: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
         title: data.title,
         description: data.description,
         deadline: data.deadline,
@@ -42,6 +47,30 @@ export class TaskService {
         assigneeId: data.assigneeId,
         status: TaskStatus.TODO
       }
+    });
+  }
+
+  async createSystemTask(data: {
+    title: string;
+    description: string;
+    deadline?: Date;
+    priority?: TaskPriority;
+    clubId: string;
+    assigneeId: string;
+    eventId?: string;
+  }) {
+    return this.prisma.task.create({
+      data: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
+        title: data.title,
+        description: data.description,
+        deadline: data.deadline,
+        priority: data.priority ?? TaskPriority.MEDIUM,
+        clubId: data.clubId,
+        eventId: data.eventId,
+        assigneeId: data.assigneeId,
+        status: TaskStatus.TODO,
+      },
     });
   }
 
@@ -89,5 +118,13 @@ export class TaskService {
       },
       orderBy: { createdAt: 'desc' }
     });
+  }
+
+  private getCurrentCollegeIdOrThrow() {
+    const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+    if (!collegeId) {
+      throw new BadRequestException('College context not available');
+    }
+    return collegeId;
   }
 }

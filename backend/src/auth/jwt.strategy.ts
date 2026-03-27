@@ -2,10 +2,14 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly cls: ClsService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -14,10 +18,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: payload.sub },
+      // Important: We need the collegeId for the CLS context
+      select: { id: true, email: true, role: true, collegeId: true, walletAddress: true } 
+    });
+    
     if (!user) {
       throw new UnauthorizedException();
     }
-    return { userId: payload.sub, email: payload.email, role: user.role };
+
+    // Set the collegeId in CLS context for automatic Prisma scoping
+    this.cls.set('collegeId', user.collegeId);
+
+    return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId, walletAddress: user.walletAddress };
   }
 }

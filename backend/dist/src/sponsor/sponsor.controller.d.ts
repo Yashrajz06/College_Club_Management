@@ -1,41 +1,71 @@
-import { SponsorService } from './sponsor.service';
 import { SponsorStatus } from '@prisma/client';
+import { SponsorService } from './sponsor.service';
 export declare class SponsorController {
     private readonly sponsorService;
     constructor(sponsorService: SponsorService);
-    createSponsor(body: any): Promise<{
+    createSponsor(req: any, body: any): Promise<{
+        collegeId: string;
         id: string;
-        email: string | null;
-        name: string;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
+        email: string | null;
         organization: string;
         phone: string | null;
+        outreachDraft: string | null;
+        lastContactedAt: Date | null;
     }>;
-    updateSponsorStatus(id: string, status: SponsorStatus): Promise<{
+    updateSponsorStatus(id: string, req: any, status: SponsorStatus): Promise<{
+        collegeId: string;
         id: string;
-        email: string | null;
-        name: string;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
+        email: string | null;
         organization: string;
         phone: string | null;
+        outreachDraft: string | null;
+        lastContactedAt: Date | null;
+    }>;
+    createOutreachDraft(id: string, req: any, eventId: string): Promise<{
+        subject: string;
+        message: string;
+    }>;
+    deleteSponsor(id: string, req: any): Promise<{
+        collegeId: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        status: import(".prisma/client").$Enums.SponsorStatus;
+        clubId: string;
+        email: string | null;
+        organization: string;
+        phone: string | null;
+        outreachDraft: string | null;
+        lastContactedAt: Date | null;
     }>;
     getClubSponsors(clubId: string): Promise<({
         transactions: {
-            date: Date;
             amount: number;
+            date: Date;
         }[];
     } & {
+        collegeId: string;
         id: string;
-        email: string | null;
-        name: string;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
+        email: string | null;
         organization: string;
         phone: string | null;
+        outreachDraft: string | null;
+        lastContactedAt: Date | null;
     })[]>;
 }
