@@ -43,27 +43,27 @@ export declare class AuthController {
         message: string;
     }>;
     getProfile(req: any): Promise<{
-        id: string;
-        name: string;
-        createdAt: Date;
         collegeId: string;
+        id: string;
+        createdAt: Date;
+        name: string;
+        walletAddress: string | null;
         email: string;
         studentId: string | null;
         department: string | null;
         year: number | null;
         isVerified: boolean;
         role: import(".prisma/client").$Enums.Role;
-        walletAddress: string | null;
     }>;
     updateProfile(req: any, body: any): Promise<{
         id: string;
         name: string;
+        walletAddress: string | null;
         email: string;
         studentId: string | null;
         department: string | null;
         year: number | null;
         role: import(".prisma/client").$Enums.Role;
-        walletAddress: string | null;
     }>;
     connectWallet(req: any, body: {
         walletAddress: string;

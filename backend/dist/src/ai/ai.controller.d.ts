@@ -85,18 +85,18 @@ export declare class AiController {
         clubs: {
             id: string;
             name: string;
-            category: string;
             status: import(".prisma/client").$Enums.ClubStatus;
+            category: string;
             prizePoolBalance: number;
         }[];
         recentEvents: {
             id: string;
             status: import(".prisma/client").$Enums.EventStatus;
-            clubId: string;
             title: string;
             date: Date;
             venue: string;
             posterImageUrl: string | null;
+            clubId: string;
         }[];
         sponsors: {
             id: string;

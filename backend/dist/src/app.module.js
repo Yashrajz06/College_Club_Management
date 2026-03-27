@@ -32,6 +32,7 @@ const colleges_module_1 = require("./colleges/colleges.module");
 const governance_module_1 = require("./governance/governance.module");
 const insights_module_1 = require("./insights/insights.module");
 const supabase_module_1 = require("./supabase/supabase.module");
+const treasury_module_1 = require("./treasury/treasury.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -47,7 +48,7 @@ exports.AppModule = AppModule = __decorate([
                 global: true,
                 middleware: { mount: true },
             }),
-            prisma_module_1.PrismaModule, auth_module_1.AuthModule, mail_module_1.MailModule, club_module_1.ClubModule, task_module_1.TaskModule, event_module_1.EventModule, finance_module_1.FinanceModule, sponsor_module_1.SponsorModule, ai_module_1.AiModule, media_module_1.MediaModule, notification_module_1.NotificationModule, report_module_1.ReportModule, admin_module_1.AdminModule, colleges_module_1.CollegesModule, governance_module_1.GovernanceModule, insights_module_1.InsightsModule, supabase_module_1.SupabaseModule
+            prisma_module_1.PrismaModule, auth_module_1.AuthModule, mail_module_1.MailModule, club_module_1.ClubModule, task_module_1.TaskModule, event_module_1.EventModule, finance_module_1.FinanceModule, treasury_module_1.TreasuryModule, sponsor_module_1.SponsorModule, ai_module_1.AiModule, media_module_1.MediaModule, notification_module_1.NotificationModule, report_module_1.ReportModule, admin_module_1.AdminModule, colleges_module_1.CollegesModule, governance_module_1.GovernanceModule, insights_module_1.InsightsModule, supabase_module_1.SupabaseModule
         ],
         controllers: [app_controller_1.AppController],
         providers: [

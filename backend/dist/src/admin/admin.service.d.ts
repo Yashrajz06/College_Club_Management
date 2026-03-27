@@ -15,8 +15,8 @@ export declare class AdminService {
     }>;
     getCoordinators(): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
+        name: string;
         email: string;
         isVerified: boolean;
         coordinatedClubs: {

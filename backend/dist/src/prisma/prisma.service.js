@@ -32,7 +32,8 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
             const modelsWithCollegeId = [
                 'User', 'Club', 'Event', 'Registration', 'Sponsor',
                 'Transaction', 'Task', 'Invitation', 'ClubMember', 'CollegeConfig',
-                'CollegeContract', 'BlockchainActivity'
+                'CollegeContract', 'BlockchainActivity', 'GovernanceProposal',
+                'GovernanceVote', 'TreasurySpendRequest'
             ];
             if (collegeId && params.model && modelsWithCollegeId.includes(params.model)) {
                 if (params.action === 'findUnique' || params.action === 'findFirst') {

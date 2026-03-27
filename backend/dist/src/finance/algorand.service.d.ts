@@ -29,6 +29,14 @@ interface LifecycleBlockchainActionInput {
     walletAddress?: string | null;
     metadata?: Record<string, unknown>;
 }
+interface TreasuryReleaseGroupInput {
+    spendRequestId: string;
+    proposalId: string;
+    amount: number;
+    receiptHash?: string | null;
+    beneficiaryWalletAddress?: string | null;
+    metadata?: Record<string, unknown>;
+}
 export declare class AlgorandService {
     private readonly prisma;
     private readonly cls;
@@ -69,49 +77,49 @@ export declare class AlgorandService {
         confirmation: algosdk.modelsv2.PendingTransactionResponse;
     }>;
     registerCollegeContractDeployment(input: RegisterCollegeContractInput): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
         collegeId: string;
+        id: string;
         type: import(".prisma/client").$Enums.CollegeContractType;
-        metadata: Prisma.JsonValue | null;
+        network: import(".prisma/client").$Enums.AlgorandNetwork;
         appId: string | null;
         assetId: string | null;
         address: string | null;
-        network: import(".prisma/client").$Enums.AlgorandNetwork;
         deployedTxId: string | null;
         note: string | null;
+        metadata: Prisma.JsonValue | null;
         isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getCollegeContracts(): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
         collegeId: string;
+        id: string;
         type: import(".prisma/client").$Enums.CollegeContractType;
-        metadata: Prisma.JsonValue | null;
+        network: import(".prisma/client").$Enums.AlgorandNetwork;
         appId: string | null;
         assetId: string | null;
         address: string | null;
-        network: import(".prisma/client").$Enums.AlgorandNetwork;
         deployedTxId: string | null;
         note: string | null;
+        metadata: Prisma.JsonValue | null;
         isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     getActiveCollegeContract(type: CollegeContractType): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
         collegeId: string;
+        id: string;
         type: import(".prisma/client").$Enums.CollegeContractType;
-        metadata: Prisma.JsonValue | null;
+        network: import(".prisma/client").$Enums.AlgorandNetwork;
         appId: string | null;
         assetId: string | null;
         address: string | null;
-        network: import(".prisma/client").$Enums.AlgorandNetwork;
         deployedTxId: string | null;
         note: string | null;
+        metadata: Prisma.JsonValue | null;
         isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     } | null>;
     lookupAssetHolding(walletAddress: string, assetId: string): Promise<bigint>;
     getCollegeScopedIndexerTransactions(limit?: number): Promise<any[]>;
@@ -119,18 +127,29 @@ export declare class AlgorandService {
         status: import(".prisma/client").$Enums.BlockchainSyncStatus;
         txId: string;
         activity: {
+            collegeId: string;
             id: string;
+            note: string | null;
+            metadata: Prisma.JsonValue | null;
             createdAt: Date;
             updatedAt: Date;
-            collegeId: string;
+            action: import(".prisma/client").$Enums.BlockchainActionType;
+            txId: string;
             walletAddress: string | null;
             status: import(".prisma/client").$Enums.BlockchainSyncStatus;
-            action: import(".prisma/client").$Enums.BlockchainActionType;
-            metadata: Prisma.JsonValue | null;
-            note: string | null;
-            txId: string;
             contractId: string | null;
         };
+    }>;
+    submitAtomicTreasuryReleaseGroup(input: TreasuryReleaseGroupInput): Promise<{
+        txId: string;
+        receiptTxId: string;
+        groupId: string | null;
+        sender: string;
+        receiver: string;
+        note: string;
+        receiptNote: string;
+        confirmation: algosdk.modelsv2.PendingTransactionResponse;
+        confirmedRound: number | bigint;
     }>;
     private getAlgodConfig;
     private getIndexerConfig;
