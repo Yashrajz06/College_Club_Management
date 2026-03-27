@@ -103,6 +103,7 @@ const AttendanceScanner: React.FC = () => {
       const signedTxns = await peraWallet.signTransaction(
         [[{
           txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            // @ts-ignore
             from: address,
             to: address,
             amount: 0,

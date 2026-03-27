@@ -29,6 +29,7 @@ model College {
   governanceProposals GovernanceProposal[]
   governanceVotes     GovernanceVote[]
   treasurySpendRequests TreasurySpendRequest[]
+  entryTokens         EntryToken[]
 }
 
 model CollegeConfig {
@@ -117,6 +118,7 @@ model User {
   governanceProposals GovernanceProposal[]
   governanceVotes     GovernanceVote[]
   treasurySpendRequests TreasurySpendRequest[] @relation("TreasuryRequester")
+  entryTokens     EntryToken[]
 
   @@index([collegeId])
 }
@@ -159,6 +161,7 @@ model Club {
   invitations      Invitation[]
   proposals        GovernanceProposal[]
   treasurySpendRequests TreasurySpendRequest[]
+  entryTokens      EntryToken[]
 
   @@index([collegeId])
 }
@@ -218,6 +221,7 @@ model Event {
   tasks         Task[]
   proposals     GovernanceProposal[]
   treasurySpendRequests TreasurySpendRequest[]
+  entryTokens   EntryToken[]
 
   @@index([collegeId])
 }
@@ -505,4 +509,36 @@ model Invitation {
 
   @@unique([userId, clubId])
   @@index([collegeId])
+}
+
+enum TokenActionType {
+  JOIN
+  REGISTER
+  ATTEND
+  VOTE
+  SPONSOR
+}
+
+model EntryToken {
+  id              String          @id @default(uuid())
+  tokenId         String?         // ASA Asset ID if applicable
+  txId            String          @unique
+  soulboundTxId   String?         @unique
+  actionType      TokenActionType
+  createdAt       DateTime        @default(now())
+
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collegeId       String
+  college         College         @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  // Optional relations based on action context
+  eventId         String?
+  event           Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  clubId          String?
+  club            Club?           @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([collegeId])
+  @@index([actionType])
 }

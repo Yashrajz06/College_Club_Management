@@ -333,7 +333,7 @@ export class InsightsService {
   }
 
   private async getAssistantContextFromPrisma(collegeId: string) {
-    const [clubs, events, sponsors] = await Promise.all([
+    const [clubs, events, sponsors, treasury] = await Promise.all([
       this.prisma.club.findMany({
         where: { collegeId },
         select: {
@@ -372,6 +372,17 @@ export class InsightsService {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+      this.prisma.treasurySpendRequest.findMany({
+        where: { collegeId },
+        select: {
+          id: true,
+          title: true,
+          amount: true,
+          status: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
     ]);
 
     const blockchain = await this.algorand.getCollegeScopedIndexerTransactions(10);
@@ -383,6 +394,7 @@ export class InsightsService {
       clubs,
       recentEvents: events,
       sponsors,
+      treasuryContext: treasury,
       recentAnalytics: [],
       blockchain,
     };

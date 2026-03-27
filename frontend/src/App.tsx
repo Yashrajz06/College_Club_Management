@@ -8,7 +8,7 @@ import AdminDashboard from './AdminDashboard';
 import PresidentDashboard from './PresidentDashboard';
 import CoordinatorDashboard from './CoordinatorDashboard';
 import SponsorCRM from './SponsorCRM';
-import AIPosterCreator from './AIPosterCreator';
+import AIStudio from './AIStudio';
 import Home from './Home';
 import CreateClub from './CreateClub';
 import MemberDashboard from './MemberDashboard';
@@ -100,7 +100,7 @@ function App() {
                           <Link to="/ledger" className="block px-4 py-2 text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">Financial Ledger</Link>
                           <Link to="/treasury" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Treasury Explorer</Link>
                           <Link to="/attendance" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Attendance PoP</Link>
-                          <Link to="/finances" className="block px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700">Sponsor CRM</Link>
+                          <Link to="/sponsors" className="block px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700">Sponsor CRM</Link>
                           <div className="border-t border-slate-100 my-1"></div>
                           <Link to="/studio" className="block px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 flex items-center gap-2"><span>✨</span> AI Studio</Link>
                         </div>
@@ -143,7 +143,7 @@ function App() {
             <Route path="/manage-club" element={<PresidentDashboard />} />
             <Route path="/coordinator" element={<CoordinatorDashboard />} />
             <Route path="/finances" element={<SponsorCRM />} />
-            <Route path="/studio" element={<AIPosterCreator />} />
+            <Route path="/studio" element={<AIStudio />} />
             <Route path="/attendance" element={<AttendanceTracker />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/gallery" element={<PhotoGallery />} />

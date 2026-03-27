@@ -1,9 +1,10 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { Body, Post, Request } from '@nestjs/common';
 
 @Controller('ai')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -36,5 +37,28 @@ export class AiController {
   @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
   async getAssistantContext() {
     return this.aiService.getAssistantContext();
+  }
+
+  @Post('chat')
+  @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
+  async chatWithAssistant(
+    @Request() req: any,
+    @Body('prompt') prompt: string,
+    @Body('history') history?: { role: string; content: string }[],
+  ) {
+    return this.aiService.chatWithAssistant(req.user.userId, prompt, history);
+  }
+
+  @Post('execute-action')
+  @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
+  async executeAction(
+    @Request() req: any,
+    @Body()
+    body: {
+      type: 'CREATE_PROPOSAL' | 'MINT_TOKEN';
+      payload: any;
+    },
+  ) {
+    return this.aiService.executeSuggestedAction(req.user.userId, body.type, body.payload);
   }
 }
