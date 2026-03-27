@@ -31,6 +31,21 @@
 $ npm install
 ```
 
+## Algorand setup
+
+Copy [`.env.example`](/Users/nirajrajendranaphade/Programming/College_Club_Management/backend/.env.example) to `.env` and configure the Algorand values for either:
+
+- TestNet: use AlgoNode / Nodely URLs and optionally set `ALGORAND_SERVER_MNEMONIC` for server-signed flows
+- LocalNet: set `ALGORAND_NETWORK=localnet`, point the algod/indexer URLs to your local stack, then run:
+
+```bash
+$ npm run algorand:localnet:start
+```
+
+Contract deployment metadata templates live in [`backend/algorand/contracts`](/Users/nirajrajendranaphade/Programming/College_Club_Management/backend/algorand/contracts/README.md). After deploying Treasury, Entry Token, or Soulbound contracts, register the result through `POST /finance/algorand/contracts` so Prisma can scope wallet gates and indexer lookups by `collegeId`.
+
+A full verification checklist for this feature lives in [`backend/algorand/TESTING.md`](/Users/nirajrajendranaphade/Programming/College_Club_Management/backend/algorand/TESTING.md).
+
 ## Compile and run the project
 
 ```bash

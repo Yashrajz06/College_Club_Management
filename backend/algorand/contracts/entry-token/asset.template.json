@@ -1,0 +1,24 @@
+{
+  "name": "college-entry-token",
+  "type": "ENTRY_TOKEN",
+  "network": "{{network}}",
+  "assetConfig": {
+    "unitName": "ENTRY",
+    "assetName": "{{collegeCode}} Entry Token",
+    "total": 1000000,
+    "decimals": 0,
+    "defaultFrozen": false
+  },
+  "noteTemplate": {
+    "app": "CampusClubs",
+    "version": 1,
+    "collegeId": "{{collegeId}}",
+    "network": "{{network}}",
+    "action": "DEPLOY",
+    "contractType": "ENTRY_TOKEN"
+  },
+  "metadata": {
+    "collegeId": "{{collegeId}}",
+    "gate": "Required for wallet-gated privileged actions"
+  }
+}

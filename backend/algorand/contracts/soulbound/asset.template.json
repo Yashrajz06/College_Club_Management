@@ -1,0 +1,24 @@
+{
+  "name": "college-soulbound-token",
+  "type": "SOULBOUND",
+  "network": "{{network}}",
+  "assetConfig": {
+    "unitName": "SOUL",
+    "assetName": "{{collegeCode}} Soulbound Role Token",
+    "total": 1000000,
+    "decimals": 0,
+    "defaultFrozen": true
+  },
+  "noteTemplate": {
+    "app": "CampusClubs",
+    "version": 1,
+    "collegeId": "{{collegeId}}",
+    "network": "{{network}}",
+    "action": "DEPLOY",
+    "contractType": "SOULBOUND"
+  },
+  "metadata": {
+    "collegeId": "{{collegeId}}",
+    "gate": "Optional gate for vote/release paths"
+  }
+}

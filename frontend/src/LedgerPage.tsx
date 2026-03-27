@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from './store';
 import { useNavigate } from 'react-router-dom';
+import {
+  prepareLedgerWalletTransaction,
+  signPreparedTransactions,
+  submitLedgerWalletTransaction,
+} from './lib/algorand';
 
 interface Transaction {
   id: string; amount: number; type: 'CREDIT' | 'DEBIT'; description: string; date: string;
@@ -11,9 +16,16 @@ interface Transaction {
 }
 
 const CATEGORIES = ['Venue', 'Decoration', 'Refreshments', 'Prizes', 'Marketing', 'Equipment', 'Printing', 'Miscellaneous'];
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const defaultExplorerBaseUrl =
+  import.meta.env.VITE_ALGORAND_EXPLORER_URL ||
+  'https://testnet.explorer.perawallet.app';
+
+import { connectPeraWallet, disconnectPeraWallet } from './lib/pera';
 
 export default function LedgerPage() {
   const { user, token } = useSelector((state: RootState) => state.auth);
+  const { address, isConnected } = useSelector((state: RootState) => state.wallet);
   const navigate = useNavigate();
   const [clubId, setClubId] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -22,6 +34,7 @@ export default function LedgerPage() {
   const [form, setForm] = useState({ type: 'DEBIT', amount: '', description: '', category: 'Venue', eventId: '' });
   const [addMode, setAddMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [explorerBaseUrl, setExplorerBaseUrl] = useState(defaultExplorerBaseUrl);
 
   useEffect(() => {
     if (!user || !['PRESIDENT', 'VP', 'COORDINATOR', 'ADMIN'].includes(user.role)) navigate('/login');
@@ -32,8 +45,8 @@ export default function LedgerPage() {
     setLoading(true);
     try {
       const [txRes, balRes] = await Promise.all([
-        fetch(`http://localhost:3000/finance/club/${clubId}/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`http://localhost:3000/finance/club/${clubId}/balance`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${backendUrl}/finance/club/${clubId}/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${backendUrl}/finance/club/${clubId}/balance`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (txRes.ok) setTransactions(await txRes.json());
       if (balRes.ok) { const b = await balRes.json(); setBalance(b.balance ?? b); }
@@ -44,27 +57,44 @@ export default function LedgerPage() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isConnected || !address) {
+      alert('Connect Pera Wallet before logging an on-chain transaction.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:3000/finance/transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          clubId,
-          type: form.type,
-          amount: parseFloat(form.amount),
-          description: form.category !== 'Miscellaneous' ? `${form.category}: ${form.description}` : form.description,
-          eventId: form.eventId || undefined,
-        }),
+      const payload = {
+        clubId,
+        type: form.type as 'CREDIT' | 'DEBIT',
+        amount: parseFloat(form.amount),
+        description:
+          form.category !== 'Miscellaneous'
+            ? `${form.category}: ${form.description}`
+            : form.description,
+        eventId: form.eventId || undefined,
+        walletAddress: address,
+      };
+
+      const prepared = await prepareLedgerWalletTransaction(token!, payload);
+      setExplorerBaseUrl(prepared.explorerBaseUrl || defaultExplorerBaseUrl);
+
+      const signedTransactions = await signPreparedTransactions(address, prepared);
+      const res = await submitLedgerWalletTransaction(token!, {
+        ...payload,
+        note: prepared.note,
+        signedTransactions,
       });
-      if (res.ok) {
-        setAddMode(false);
-        setForm({ type: 'DEBIT', amount: '', description: '', category: 'Venue', eventId: '' });
-        loadLedger();
-      } else {
-        const d = await res.json();
-        alert(d.message || 'Failed to add transaction');
+
+      if (!res) {
+        throw new Error('Failed to save transaction');
       }
+
+      setAddMode(false);
+      setForm({ type: 'DEBIT', amount: '', description: '', category: 'Venue', eventId: '' });
+      loadLedger();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to add transaction');
     } finally {
       setSubmitting(false);
     }
@@ -89,6 +119,26 @@ export default function LedgerPage() {
           <button onClick={loadLedger} disabled={loading}
             className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50">
             {loading ? 'Loading...' : 'Load Ledger'}
+          </button>
+        </div>
+
+        {/* Pera Wallet Connection */}
+        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+            <span className="text-sm font-medium text-slate-600">
+              {isConnected ? `Connected: ${address?.substring(0, 6)}...${address?.substring(address.length - 4)}` : 'Pera Wallet Not Connected'}
+            </span>
+          </div>
+          <button 
+            onClick={isConnected ? disconnectPeraWallet : connectPeraWallet}
+            className={`text-xs font-bold px-4 py-2 rounded-lg transition-all ${
+              isConnected 
+                ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' 
+                : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+            }`}
+          >
+            {isConnected ? 'Disconnect' : 'Connect Pera Wallet'}
           </button>
         </div>
       </div>
@@ -177,7 +227,7 @@ export default function LedgerPage() {
                           {tx.event && <span>· 📅 {tx.event.title}</span>}
                           {tx.sponsor && <span>· 🤝 {tx.sponsor.name}</span>}
                           {tx.txnHash && (
-                            <a href={`https://testnet.explorer.perawallet.app/tx/${tx.txnHash}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-0.5 rounded transition-colors" title={`Txn Id: ${tx.txnHash}`}>
+                            <a href={`${explorerBaseUrl}/tx/${tx.txnHash}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-0.5 rounded transition-colors" title={`Txn Id: ${tx.txnHash}`}>
                               <span className="text-[10px]">🔗</span> AlgoExplorer
                             </a>
                           )}

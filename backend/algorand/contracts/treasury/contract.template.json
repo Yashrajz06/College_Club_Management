@@ -1,0 +1,22 @@
+{
+  "name": "college-treasury",
+  "type": "TREASURY",
+  "network": "{{network}}",
+  "appSpec": {
+    "approvalProgram": "artifacts/treasury/approval.teal",
+    "clearProgram": "artifacts/treasury/clear.teal"
+  },
+  "noteTemplate": {
+    "app": "CampusClubs",
+    "version": 1,
+    "collegeId": "{{collegeId}}",
+    "network": "{{network}}",
+    "action": "DEPLOY",
+    "contractType": "TREASURY"
+  },
+  "metadata": {
+    "collegeId": "{{collegeId}}",
+    "purpose": "Treasury and release authority",
+    "managedBy": "{{walletAddress}}"
+  }
+}
