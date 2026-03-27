@@ -17,6 +17,7 @@ import { AiService } from '../ai/ai.service';
 import { AlgorandService } from '../finance/algorand.service';
 import { InsightsService } from '../insights/insights.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGateway } from '../notification/notification/notification.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { TokenService } from '../token/token.service';
 import { TokenActionType } from '@prisma/client';
@@ -30,6 +31,7 @@ export class EventService {
     private readonly mailService: MailService,
     private readonly algorand: AlgorandService,
     private readonly insights: InsightsService,
+    private readonly notifications: NotificationGateway,
     private readonly tokenService: TokenService,
   ) {}
 
@@ -128,6 +130,18 @@ export class EventService {
         treasuryPlaceholderTxId: updated.treasuryPlaceholderTxId,
       },
     });
+
+    const coordinator = await this.prisma.club.findFirst({
+      where: { id: updated.clubId, collegeId },
+      select: { coordinatorId: true },
+    });
+    if (coordinator?.coordinatorId) {
+      this.notifications.sendNotificationToUser(coordinator.coordinatorId, {
+        title: 'Event Approval Needed',
+        message: `${updated.title} is waiting for your review.`,
+        type: 'info',
+      });
+    }
 
     return updated;
   }
@@ -244,6 +258,19 @@ export class EventService {
       },
     });
 
+    const club = await this.prisma.club.findFirst({
+      where: { id: event.clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
+      select: { presidentId: true, vpId: true },
+    });
+    [club?.presidentId, club?.vpId].forEach((recipientId) => {
+      if (!recipientId) return;
+      this.notifications.sendNotificationToUser(recipientId, {
+        title: 'Event Approved',
+        message: `${event.title} is approved and ready to publish.`,
+        type: 'success',
+      });
+    });
+
     return event;
   }
 
@@ -265,6 +292,19 @@ export class EventService {
       payload: {
         remarks,
       },
+    });
+
+    const club = await this.prisma.club.findFirst({
+      where: { id: event.clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
+      select: { presidentId: true, vpId: true },
+    });
+    [club?.presidentId, club?.vpId].forEach((recipientId) => {
+      if (!recipientId) return;
+      this.notifications.sendNotificationToUser(recipientId, {
+        title: 'Event Needs Changes',
+        message: `${event.title} was not approved.${remarks ? ` ${remarks}` : ''}`,
+        type: 'warning',
+      });
     });
 
     return event;
@@ -304,6 +344,11 @@ export class EventService {
       entityType: 'event',
       action: 'published',
       entityId: updated.id,
+    });
+
+    this.notifications.sendGlobalNotification({
+      title: 'New Public Event',
+      message: `${updated.title} is now open for public registration.`,
     });
 
     return updated;
@@ -377,6 +422,19 @@ export class EventService {
         club: { select: { name: true } },
       },
       orderBy: { date: 'desc' },
+    });
+  }
+
+  async getRegistrationsForUser(userId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
+    return this.prisma.registration.findMany({
+      where: { userId, collegeId },
+      include: {
+        event: {
+          select: { id: true, title: true, date: true, venue: true, capacity: true },
+        },
+      },
+      orderBy: { registeredAt: 'desc' },
     });
   }
 
@@ -489,6 +547,8 @@ export class EventService {
         userId: guestUser.id,
         eventId,
         isWaitlisted,
+        guestPhone: guest.phone,
+        guestInstitution: guest.institution,
         qrCode: `CCG-${eventId.slice(0, 4)}-${guestUser.id
           .slice(0, 4)
           .toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,

@@ -12,11 +12,13 @@ const finance_controller_1 = require("./finance.controller");
 const finance_service_1 = require("./finance.service");
 const algorand_service_1 = require("./algorand.service");
 const token_gate_service_1 = require("./token-gate.service");
+const token_module_1 = require("../token/token.module");
 let FinanceModule = class FinanceModule {
 };
 exports.FinanceModule = FinanceModule;
 exports.FinanceModule = FinanceModule = __decorate([
     (0, common_1.Module)({
+        imports: [(0, common_1.forwardRef)(() => token_module_1.TokenModule)],
         controllers: [finance_controller_1.FinanceController],
         providers: [finance_service_1.FinanceService, algorand_service_1.AlgorandService, token_gate_service_1.TokenGateService],
         exports: [finance_service_1.FinanceService, algorand_service_1.AlgorandService, token_gate_service_1.TokenGateService],

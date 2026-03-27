@@ -237,6 +237,8 @@ model Registration {
   attended       Boolean  @default(false)
   qrCode         String?  @unique
   certificateUrl String?
+  guestPhone     String?
+  guestInstitution String?
   registeredAt   DateTime @default(now())
 
   collegeId String

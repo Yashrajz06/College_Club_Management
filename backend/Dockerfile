@@ -1,16 +1,11 @@
-FROM node:24-alpine
+FROM node:24-slim
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY prisma ./prisma/
-
-RUN npm install
-
-COPY . .
-
-RUN npx prisma generate
+RUN apt-get update \
+  && apt-get install -y openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start:dev"]
+CMD ["sh", "-lc", "npx prisma generate && npm run start:dev"]

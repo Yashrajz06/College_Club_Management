@@ -16,19 +16,19 @@ export declare class FinanceController {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     prepareWalletTransaction(body: PrepareWalletTransactionDto): Promise<{
         network: "testnet" | "localnet";
@@ -48,49 +48,49 @@ export declare class FinanceController {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     registerCollegeContract(body: RegisterCollegeContractDto): Promise<{
-        collegeId: string;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         type: import(".prisma/client").$Enums.CollegeContractType;
-        network: import(".prisma/client").$Enums.AlgorandNetwork;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         appId: string | null;
         assetId: string | null;
         address: string | null;
+        network: import(".prisma/client").$Enums.AlgorandNetwork;
         deployedTxId: string | null;
         note: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getCollegeContracts(): Promise<{
-        collegeId: string;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         type: import(".prisma/client").$Enums.CollegeContractType;
-        network: import(".prisma/client").$Enums.AlgorandNetwork;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         appId: string | null;
         assetId: string | null;
         address: string | null;
+        network: import(".prisma/client").$Enums.AlgorandNetwork;
         deployedTxId: string | null;
         note: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     getCollegeScopedTransactions(limit?: string): Promise<any[]>;
     getClubTransactions(clubId: string): Promise<({
@@ -102,19 +102,19 @@ export declare class FinanceController {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     })[]>;
     getClubBalance(clubId: string): Promise<{
         balance: number;

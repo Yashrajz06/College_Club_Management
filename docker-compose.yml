@@ -1,16 +1,14 @@
-version: '3.9'
-
 services:
   # 1. PostgreSQL (for Prisma)
   postgres:
-    image: postgres:16-alpine
-    container_name: college-club-postgres
+    image: postgres:15-alpine
+    container_name: ccm_postgres
     environment:
-      POSTGRES_DB: college_club
-      POSTGRES_USER: postgres
+      POSTGRES_DB: college_club_db
+      POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -43,13 +41,20 @@ services:
   # 4. Backend (NestJS)
   backend:
     build: ./backend
-    container_name: college-club-backend
+    container_name: ccm_backend
     depends_on:
       - postgres
       - redis
       - minio
+    env_file:
+      - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/college_club
+      - DATABASE_URL=postgresql://user:password@postgres:5432/college_club_db?schema=public
+      - FRONTEND_URL=http://localhost:5173
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password123
       - ALGORAND_NETWORK=${ALGORAND_NETWORK:-testnet}
       - ALGORAND_ALGOD_URL=${ALGORAND_ALGOD_URL:-https://testnet-api.algonode.cloud}
       - ALGORAND_ALGOD_PORT=${ALGORAND_ALGOD_PORT:-}
@@ -63,19 +68,18 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app
-      - /app/node_modules
     restart: unless-stopped
 
   # 5. Frontend (React Vite)
   frontend:
     build: ./frontend
-    container_name: college-club-frontend
+    container_name: ccm_frontend
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
     environment:
+      - VITE_API_URL=http://localhost:3000
       - VITE_BACKEND_URL=http://localhost:3000
       - VITE_ALGORAND_NETWORK=${ALGORAND_NETWORK:-testnet}
       - VITE_ALGORAND_EXPLORER_URL=${ALGORAND_EXPLORER_URL:-https://testnet.explorer.perawallet.app}

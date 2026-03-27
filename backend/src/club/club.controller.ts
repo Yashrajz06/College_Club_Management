@@ -98,6 +98,11 @@ export class ClubController {
     return this.clubService.getInvitationsForUser(req.user.userId);
   }
 
+  @Get('my-requests')
+  async getMyRequests(@Request() req: any) {
+    return this.clubService.getRequestsForUser(req.user.userId);
+  }
+
   @Patch('invitation/:id/respond')
   async respondToInvite(
     @Param('id') inviteId: string,
@@ -114,6 +119,22 @@ export class ClubController {
   @Get(':id/members')
   async getMembers(@Param('id') clubId: string) {
     return this.clubService.getMembers(clubId);
+  }
+
+  @Patch(':id/members/:memberId')
+  @Roles(Role.ADMIN, Role.PRESIDENT, Role.VP)
+  async updateMemberRole(
+    @Param('id') clubId: string,
+    @Param('memberId') memberId: string,
+    @Request() req: any,
+    @Body() body: { customRole?: string | null },
+  ) {
+    return this.clubService.updateMemberRole(
+      clubId,
+      memberId,
+      req.user.userId,
+      body.customRole,
+    );
   }
 
   @Public()

@@ -45,6 +45,12 @@ export default function SponsorCRM() {
     email: '',
     phone: '',
   });
+  const [contributionForm, setContributionForm] = useState({
+    sponsorId: '',
+    eventId: '',
+    amount: '',
+    description: '',
+  });
 
   useEffect(() => {
     if (!user || (user.role !== 'PRESIDENT' && user.role !== 'VP')) {
@@ -74,6 +80,10 @@ export default function SponsorCRM() {
       setBalance(balanceData?.balance ?? null);
       setSponsors(sponsorData ?? []);
       setEvents(eventData ?? []);
+      setContributionForm((current) => ({
+        ...current,
+        sponsorId: current.sponsorId || sponsorData?.[0]?.id || '',
+      }));
     } catch (error) {
       console.error(error);
     } finally {
@@ -160,6 +170,50 @@ export default function SponsorCRM() {
     }
   };
 
+  const handleLogContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clubId || !contributionForm.sponsorId) return;
+
+    setLoading(true);
+    try {
+      await apiFetch('/finance/transaction', {
+        method: 'POST',
+        body: JSON.stringify({
+          clubId,
+          sponsorId: contributionForm.sponsorId,
+          eventId: contributionForm.eventId || undefined,
+          type: 'CREDIT',
+          amount: Number(contributionForm.amount),
+          description: contributionForm.description.trim()
+            ? `Sponsor Credit: ${contributionForm.description.trim()}`
+            : 'Sponsor Credit: Contribution received',
+        }),
+      });
+      setContributionForm((current) => ({
+        sponsorId: current.sponsorId,
+        eventId: '',
+        amount: '',
+        description: '',
+      }));
+      await loadClubAndSponsors();
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : 'Failed to log sponsor credit',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyDraft = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`${label} copied to clipboard.`);
+    } catch {
+      alert(`Could not copy ${label.toLowerCase()}.`);
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -181,79 +235,180 @@ export default function SponsorCRM() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">
-            Add Prospect
-          </h3>
-          <form className="space-y-4" onSubmit={handleAddSponsor}>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Contact Person
-              </label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, name: e.target.value }))
-                }
-                className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Jane Doe"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Organization
-              </label>
-              <input
-                type="text"
-                required
-                value={form.organization}
-                onChange={(e) =>
-                  setForm((current) => ({
-                    ...current,
-                    organization: e.target.value,
-                  }))
-                }
-                className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="TechCorp"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, email: e.target.value }))
-                }
-                className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="jane@techcorp.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Phone
-              </label>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, phone: e.target.value }))
-                }
-                className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="+91 9876543210"
-              />
-            </div>
-            <button
-              disabled={loading || !clubId}
-              className="w-full py-2 bg-slate-900 text-white font-medium rounded-lg shadow-sm hover:bg-slate-800 transition disabled:opacity-60"
-            >
-              Save Sponsor
-            </button>
-          </form>
+        <div className="md:col-span-1 space-y-6">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Add Prospect
+            </h3>
+            <form className="space-y-4" onSubmit={handleAddSponsor}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Contact Person
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, name: e.target.value }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Jane Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Organization
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.organization}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      organization: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="TechCorp"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, email: e.target.value }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="jane@techcorp.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, phone: e.target.value }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="+91 9876543210"
+                />
+              </div>
+              <button
+                disabled={loading || !clubId}
+                className="w-full py-2 bg-slate-900 text-white font-medium rounded-lg shadow-sm hover:bg-slate-800 transition disabled:opacity-60"
+              >
+                Save Sponsor
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+              Log Sponsor Credit
+            </h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Record the contribution directly into the Algorand-backed club
+              ledger.
+            </p>
+            <form className="space-y-4" onSubmit={handleLogContribution}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Sponsor
+                </label>
+                <select
+                  required
+                  value={contributionForm.sponsorId}
+                  onChange={(e) =>
+                    setContributionForm((current) => ({
+                      ...current,
+                      sponsorId: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Choose sponsor</option>
+                  {sponsors.map((sponsor) => (
+                    <option key={sponsor.id} value={sponsor.id}>
+                      {sponsor.organization} • {sponsor.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={contributionForm.amount}
+                  onChange={(e) =>
+                    setContributionForm((current) => ({
+                      ...current,
+                      amount: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="5000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Linked Event
+                </label>
+                <select
+                  value={contributionForm.eventId}
+                  onChange={(e) =>
+                    setContributionForm((current) => ({
+                      ...current,
+                      eventId: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No event linked</option>
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} • {new Date(event.date).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Purpose
+                </label>
+                <input
+                  type="text"
+                  value={contributionForm.description}
+                  onChange={(e) =>
+                    setContributionForm((current) => ({
+                      ...current,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Title sponsor contribution"
+                />
+              </div>
+              <button
+                disabled={loading || !clubId || sponsors.length === 0}
+                className="w-full py-2 bg-emerald-600 text-white font-medium rounded-lg shadow-sm hover:bg-emerald-700 transition disabled:opacity-60"
+              >
+                Log Credit Transaction
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
@@ -296,7 +451,7 @@ export default function SponsorCRM() {
                         ) : null}
                         {sponsor.transactions && sponsor.transactions.length > 0 ? (
                           <div className="text-xs text-emerald-700 mt-2 font-semibold">
-                            Contributions:{' '}
+                            Contributions: ₹
                             {sponsor.transactions.reduce(
                               (sum, transaction) => sum + transaction.amount,
                               0,
@@ -378,6 +533,26 @@ export default function SponsorCRM() {
                             Subject: {draft.subject}
                           </div>
                         ) : null}
+                        <div className="flex gap-2 flex-wrap">
+                          {draft?.subject ? (
+                            <button
+                              type="button"
+                              onClick={() => copyDraft(draft.subject, 'Subject')}
+                              className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                            >
+                              Copy Subject
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyDraft(draft?.message || sponsor.outreachDraft || '', 'Draft')
+                            }
+                            className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                          >
+                            Copy Body
+                          </button>
+                        </div>
                         <pre className="whitespace-pre-wrap text-sm text-slate-600 font-sans">
                           {draft?.message || sponsor.outreachDraft}
                         </pre>

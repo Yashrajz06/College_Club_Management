@@ -17,7 +17,10 @@ const ai_service_1 = require("../ai/ai.service");
 const algorand_service_1 = require("../finance/algorand.service");
 const insights_service_1 = require("../insights/insights.service");
 const mail_service_1 = require("../mail/mail.service");
+const notification_gateway_1 = require("../notification/notification/notification.gateway");
 const prisma_service_1 = require("../prisma/prisma.service");
+const token_service_1 = require("../token/token.service");
+const client_2 = require("@prisma/client");
 let EventService = class EventService {
     prisma;
     cls;
@@ -25,13 +28,17 @@ let EventService = class EventService {
     mailService;
     algorand;
     insights;
-    constructor(prisma, cls, aiService, mailService, algorand, insights) {
+    notifications;
+    tokenService;
+    constructor(prisma, cls, aiService, mailService, algorand, insights, notifications, tokenService) {
         this.prisma = prisma;
         this.cls = cls;
         this.aiService = aiService;
         this.mailService = mailService;
         this.algorand = algorand;
         this.insights = insights;
+        this.notifications = notifications;
+        this.tokenService = tokenService;
     }
     async createEvent(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
@@ -109,6 +116,17 @@ let EventService = class EventService {
                 treasuryPlaceholderTxId: updated.treasuryPlaceholderTxId,
             },
         });
+        const coordinator = await this.prisma.club.findFirst({
+            where: { id: updated.clubId, collegeId },
+            select: { coordinatorId: true },
+        });
+        if (coordinator?.coordinatorId) {
+            this.notifications.sendNotificationToUser(coordinator.coordinatorId, {
+                title: 'Event Approval Needed',
+                message: `${updated.title} is waiting for your review.`,
+                type: 'info',
+            });
+        }
         return updated;
     }
     async updateEvent(eventId, requesterId, data) {
@@ -192,6 +210,19 @@ let EventService = class EventService {
                 approvedAt: event.approvedAt,
             },
         });
+        const club = await this.prisma.club.findFirst({
+            where: { id: event.clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
+            select: { presidentId: true, vpId: true },
+        });
+        [club?.presidentId, club?.vpId].forEach((recipientId) => {
+            if (!recipientId)
+                return;
+            this.notifications.sendNotificationToUser(recipientId, {
+                title: 'Event Approved',
+                message: `${event.title} is approved and ready to publish.`,
+                type: 'success',
+            });
+        });
         return event;
     }
     async rejectEvent(eventId, coordinatorId, remarks) {
@@ -211,6 +242,19 @@ let EventService = class EventService {
             payload: {
                 remarks,
             },
+        });
+        const club = await this.prisma.club.findFirst({
+            where: { id: event.clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
+            select: { presidentId: true, vpId: true },
+        });
+        [club?.presidentId, club?.vpId].forEach((recipientId) => {
+            if (!recipientId)
+                return;
+            this.notifications.sendNotificationToUser(recipientId, {
+                title: 'Event Needs Changes',
+                message: `${event.title} was not approved.${remarks ? ` ${remarks}` : ''}`,
+                type: 'warning',
+            });
         });
         return event;
     }
@@ -245,6 +289,10 @@ let EventService = class EventService {
             entityType: 'event',
             action: 'published',
             entityId: updated.id,
+        });
+        this.notifications.sendGlobalNotification({
+            title: 'New Public Event',
+            message: `${updated.title} is now open for public registration.`,
         });
         return updated;
     }
@@ -313,6 +361,18 @@ let EventService = class EventService {
             orderBy: { date: 'desc' },
         });
     }
+    async getRegistrationsForUser(userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        return this.prisma.registration.findMany({
+            where: { userId, collegeId },
+            include: {
+                event: {
+                    select: { id: true, title: true, date: true, venue: true, capacity: true },
+                },
+            },
+            orderBy: { registeredAt: 'desc' },
+        });
+    }
     async registerForEvent(userId, eventId) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.prisma.event.findFirst({
@@ -353,17 +413,14 @@ let EventService = class EventService {
                     .toUpperCase()}`,
             },
         });
-        await this.algorand.triggerLifecycleAction({
-            action: client_1.BlockchainActionType.MINT,
-            contractType: client_1.CollegeContractType.ENTRY_TOKEN,
-            entityId: registration.id,
-            walletAddress: user.walletAddress,
+        await this.tokenService.mintEntryToken({
+            userId,
+            actionType: client_2.TokenActionType.REGISTER,
+            walletAddress: user.walletAddress ?? undefined,
+            eventId,
             metadata: {
                 reason: 'event_registration',
-                eventId,
-                userId,
                 registrationId: registration.id,
-                targetWalletAddress: user.walletAddress,
             },
         });
         await this.insights.recordSyncEvent({
@@ -412,6 +469,8 @@ let EventService = class EventService {
                 userId: guestUser.id,
                 eventId,
                 isWaitlisted,
+                guestPhone: guest.phone,
+                guestInstitution: guest.institution,
                 qrCode: `CCG-${eventId.slice(0, 4)}-${guestUser.id
                     .slice(0, 4)
                     .toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
@@ -550,6 +609,8 @@ exports.EventService = EventService = __decorate([
         ai_service_1.AiService,
         mail_service_1.MailService,
         algorand_service_1.AlgorandService,
-        insights_service_1.InsightsService])
+        insights_service_1.InsightsService,
+        notification_gateway_1.NotificationGateway,
+        token_service_1.TokenService])
 ], EventService);
 //# sourceMappingURL=event.service.js.map

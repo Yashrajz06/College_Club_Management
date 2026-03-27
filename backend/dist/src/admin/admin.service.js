@@ -46,6 +46,7 @@ exports.AdminService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const mail_service_1 = require("../mail/mail.service");
+const notification_gateway_1 = require("../notification/notification/notification.gateway");
 const crypto = __importStar(require("crypto"));
 const client_1 = require("@prisma/client");
 const nestjs_cls_1 = require("nestjs-cls");
@@ -53,10 +54,12 @@ let AdminService = class AdminService {
     prisma;
     mailService;
     cls;
-    constructor(prisma, mailService, cls) {
+    notifications;
+    constructor(prisma, mailService, cls, notifications) {
         this.prisma = prisma;
         this.mailService = mailService;
         this.cls = cls;
+        this.notifications = notifications;
     }
     async inviteCoordinator(dto) {
         const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -80,10 +83,16 @@ let AdminService = class AdminService {
         });
         const inviteLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
         await this.mailService.sendInviteEmail(dto.email, dto.name, inviteLink);
+        this.notifications.sendGlobalNotification({
+            title: 'Coordinator Invited',
+            message: `${dto.name} was invited as a faculty coordinator.`,
+        });
         return { message: 'Invite sent successfully' };
     }
     async resendInvite(userId) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        const user = await this.prisma.user.findFirst({
+            where: { id: userId, collegeId: this.getCurrentCollegeIdOrThrow() },
+        });
         if (!user) {
             throw new common_1.NotFoundException('User not found');
         }
@@ -106,7 +115,10 @@ let AdminService = class AdminService {
     }
     async getCoordinators() {
         const coordinators = await this.prisma.user.findMany({
-            where: { role: client_1.Role.COORDINATOR },
+            where: {
+                role: client_1.Role.COORDINATOR,
+                collegeId: this.getCurrentCollegeIdOrThrow(),
+            },
             select: {
                 id: true,
                 name: true,
@@ -136,6 +148,7 @@ exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         mail_service_1.MailService,
-        nestjs_cls_1.ClsService])
+        nestjs_cls_1.ClsService,
+        notification_gateway_1.NotificationGateway])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

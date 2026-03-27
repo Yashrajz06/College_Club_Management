@@ -101,6 +101,11 @@ export class EventController {
     return this.eventService.registerForEvent(req.user.userId, id);
   }
 
+  @Get('my-registrations')
+  async getMyRegistrations(@Request() req: any) {
+    return this.eventService.getRegistrationsForUser(req.user.userId);
+  }
+
   @Public()
   @Post(':id/register-guest')
   async guestRegister(@Param('id') id: string, @Body() body: any) {

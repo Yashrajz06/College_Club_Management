@@ -70,6 +70,9 @@ let EventController = class EventController {
     async register(id, req) {
         return this.eventService.registerForEvent(req.user.userId, id);
     }
+    async getMyRegistrations(req) {
+        return this.eventService.getRegistrationsForUser(req.user.userId);
+    }
     async guestRegister(id, body) {
         return this.eventService.registerGuest(id, body);
     }
@@ -174,6 +177,13 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], EventController.prototype, "register", null);
+__decorate([
+    (0, common_1.Get)('my-registrations'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], EventController.prototype, "getMyRegistrations", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Post)(':id/register-guest'),

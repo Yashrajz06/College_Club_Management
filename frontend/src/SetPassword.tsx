@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { apiFetch } from './lib/api';
 
 export default function SetPassword() {
   const [searchParams] = useSearchParams();
@@ -39,22 +40,18 @@ export default function SetPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3000/auth/set-password', {
+      await apiFetch('/auth/set-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setSuccess(true);
-        setTimeout(() => navigate('/login'), 2000);
-      } else {
-        setError(data.message || 'Failed to activate account. The link may have expired.');
-      }
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError('Something went wrong. Please check your network connection.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please check your network connection.',
+      );
     } finally {
       setLoading(false);
     }

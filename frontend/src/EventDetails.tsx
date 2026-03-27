@@ -22,6 +22,16 @@ interface EventData {
   proposals?: { id: string; title: string; status: string; createdAt: string }[];
 }
 
+interface MyRegistration {
+  id: string;
+  qrCode?: string;
+  certificateUrl?: string;
+  isWaitlisted: boolean;
+  attended: boolean;
+  registeredAt: string;
+  event: { id: string; title: string; date: string; venue: string; capacity: number };
+}
+
 export default function EventDetails() {
   const { id } = useParams<{ id: string }>();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -33,6 +43,7 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [myRegistration, setMyRegistration] = useState<MyRegistration | null>(null);
   const [guestForm, setGuestForm] = useState({
     name: '',
     email: '',
@@ -49,18 +60,16 @@ export default function EventDetails() {
 
         if (user) {
           try {
-            const registrations = await apiFetch(`/event/${id}/registrations`);
+            const registrations = await apiFetch('/event/my-registrations');
             const myReg = (registrations ?? []).find(
-              (registration: any) => registration.user.id === user.id,
+              (registration: MyRegistration) => registration.event.id === id,
             );
             if (myReg) {
               setRegistered(true);
-              setEvent((current) =>
-                current ? { ...current, registrations } : current,
-              );
+              setMyRegistration(myReg);
             }
           } catch {
-            // Non-privileged roles do not have access to full registration lists.
+            // Ignore current-user registration lookup failures.
           }
         }
       } catch (error) {
@@ -81,9 +90,23 @@ export default function EventDetails() {
 
     setRegistering(true);
     try {
-      await apiFetch(`/event/${id}/register`, { method: 'POST' });
+      const registration = await apiFetch(`/event/${id}/register`, { method: 'POST' });
       setRegistered(true);
-      alert('Successfully registered for the event.');
+      setMyRegistration({
+        ...registration,
+        event: {
+          id: event?.id || id || '',
+          title: event?.title || '',
+          date: event?.date || '',
+          venue: event?.venue || '',
+          capacity: event?.capacity || 0,
+        },
+      });
+      alert(
+        registration?.isWaitlisted
+          ? 'Event is full. You were added to the waitlist.'
+          : 'Successfully registered for the event.',
+      );
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Registration failed');
     } finally {
@@ -95,13 +118,27 @@ export default function EventDetails() {
     e.preventDefault();
     setRegistering(true);
     try {
-      await apiFetch(`/event/${id}/register-guest`, {
+      const registration = await apiFetch(`/event/${id}/register-guest`, {
         method: 'POST',
         body: JSON.stringify(guestForm),
       });
       setShowGuestModal(false);
       setRegistered(true);
-      alert('Registered as guest. Check your email for confirmation details.');
+      setMyRegistration({
+        ...registration,
+        event: {
+          id: event?.id || id || '',
+          title: event?.title || '',
+          date: event?.date || '',
+          venue: event?.venue || '',
+          capacity: event?.capacity || 0,
+        },
+      });
+      alert(
+        registration?.isWaitlisted
+          ? 'Event is full. You were added to the guest waitlist.'
+          : 'Registered as guest. Check your email for confirmation details.',
+      );
     } catch (error) {
       alert(
         error instanceof Error ? error.message : 'Guest registration failed',
@@ -130,7 +167,7 @@ export default function EventDetails() {
     );
   }
 
-  const spotsLeft = event.capacity - (event.registrations?.length ?? 0);
+  const spotsLeft = Math.max(event.capacity - (event.registrations?.length ?? 0), 0);
   const isFull = spotsLeft <= 0;
 
   return (
@@ -212,37 +249,37 @@ export default function EventDetails() {
           <h2 className="text-lg font-bold text-slate-900">Register for Event</h2>
           {registered ? (
             <div className="space-y-4">
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-4 text-center font-semibold">
-                You&apos;re registered.
+              <div
+                className={`rounded-xl p-4 text-center font-semibold border ${
+                  myRegistration?.isWaitlisted
+                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                }`}
+              >
+                {myRegistration?.isWaitlisted
+                  ? 'You are on the waitlist. We will notify you if a slot opens.'
+                  : 'You are confirmed for this event.'}
               </div>
-              {event.registrations?.find((registration) => registration.userId === user?.id)
-                ?.certificateUrl ? (
+              {myRegistration ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  Registered on {new Date(myRegistration.registeredAt).toLocaleString()}
+                </div>
+              ) : null}
+              {myRegistration?.certificateUrl ? (
                 <button
-                  onClick={() =>
-                    window.open(
-                      event.registrations?.find(
-                        (registration) => registration.userId === user?.id,
-                      )?.certificateUrl,
-                      '_blank',
-                    )
-                  }
+                  onClick={() => window.open(myRegistration.certificateUrl, '_blank')}
                   className="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-2xl shadow-xl shadow-amber-200 hover:scale-105 transition-all text-sm"
                 >
                   Download Certificate
                 </button>
               ) : null}
-              {event.registrations?.find((registration) => registration.userId === user?.id)
-                ?.qrCode ? (
+              {myRegistration?.qrCode ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center shadow-inner">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                     Your Entry QR
                   </div>
                   <div className="text-lg font-black text-slate-900 break-all font-mono">
-                    {
-                      event.registrations.find(
-                        (registration) => registration.userId === user?.id,
-                      )?.qrCode
-                    }
+                    {myRegistration.qrCode}
                   </div>
                 </div>
               ) : null}
@@ -310,6 +347,9 @@ export default function EventDetails() {
           )}
           <p className="text-xs text-slate-400 text-center mt-2">
             {event.registrations?.length ?? 0} / {event.capacity} registered
+          </p>
+          <p className="text-xs text-slate-400 text-center">
+            Once capacity fills up, new registrations automatically join the waitlist.
           </p>
         </div>
       </div>

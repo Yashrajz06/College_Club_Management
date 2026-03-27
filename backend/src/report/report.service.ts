@@ -13,6 +13,17 @@ export class ReportService {
         club: true,
         registrations: { include: { user: true } },
         transactions: true,
+        tasks: {
+          include: {
+            assignee: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -22,7 +33,15 @@ export class ReportService {
     const members = event.registrations.filter(r => r.user.role !== 'GUEST').length;
     const guests = event.registrations.filter(r => r.user.role === 'GUEST').length;
     const attended = event.registrations.filter(r => r.attended).length;
+    const memberAttendance = event.registrations.filter(
+      (r) => r.user.role !== 'GUEST' && r.attended,
+    ).length;
+    const guestAttendance = event.registrations.filter(
+      (r) => r.user.role === 'GUEST' && r.attended,
+    ).length;
     const attendanceRate = totalRegistrations > 0 ? ((attended / totalRegistrations) * 100).toFixed(1) : '0';
+    const completedTasks = event.tasks.filter((task) => task.status === 'DONE').length;
+    const openTasks = event.tasks.length - completedTasks;
 
     const totalSpent = event.transactions
       .filter(t => t.type === 'DEBIT')
@@ -92,6 +111,16 @@ export class ReportService {
               <div class="stat-value">${guests}</div>
             </div>
           </div>
+          <div class="grid" style="margin-top: 20px;">
+            <div class="stat-card">
+              <div class="stat-label">Member Attendance</div>
+              <div class="stat-value">${memberAttendance} / ${members}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Guest Attendance</div>
+              <div class="stat-value">${guestAttendance} / ${guests}</div>
+            </div>
+          </div>
         </div>
 
         <div class="section">
@@ -105,7 +134,56 @@ export class ReportService {
               <div class="stat-label">Total Expenditure</div>
               <div class="stat-value">₹${totalSpent.toLocaleString()}</div>
             </div>
+            <div class="stat-card">
+              <div class="stat-label">Sponsor Credits</div>
+              <div class="stat-value">₹${totalSponsorship.toLocaleString()}</div>
+            </div>
           </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Task Summary</div>
+          <div class="grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Tasks</div>
+              <div class="stat-value">${event.tasks.length}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Completed</div>
+              <div class="stat-value">${completedTasks}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Open</div>
+              <div class="stat-value">${openTasks}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Club Status</div>
+              <div class="stat-value">${event.club.status}</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Assignee</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Deadline</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${event.tasks.map(task => `
+                <tr>
+                  <td>${task.title}</td>
+                  <td>${task.assignee?.name || 'Unassigned'}</td>
+                  <td>${task.status}</td>
+                  <td>${task.priority}</td>
+                  <td>${task.deadline ? new Date(task.deadline).toLocaleDateString() : 'N/A'}</td>
+                </tr>
+              `).join('')}
+              ${event.tasks.length === 0 ? '<tr><td colspan="5" style="text-align: center;">No tasks recorded for this event.</td></tr>' : ''}
+            </tbody>
+          </table>
         </div>
 
         <div class="section">

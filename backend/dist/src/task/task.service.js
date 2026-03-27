@@ -14,12 +14,15 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const nestjs_cls_1 = require("nestjs-cls");
+const notification_gateway_1 = require("../notification/notification/notification.gateway");
 let TaskService = class TaskService {
     prisma;
     cls;
-    constructor(prisma, cls) {
+    notifications;
+    constructor(prisma, cls, notifications) {
         this.prisma = prisma;
         this.cls = cls;
+        this.notifications = notifications;
     }
     async createTask(data) {
         const club = await this.prisma.club.findUnique({
@@ -38,7 +41,7 @@ let TaskService = class TaskService {
         if (!assigneeIsMember) {
             throw new common_1.BadRequestException('Assignee must be a member of this club');
         }
-        return this.prisma.task.create({
+        const task = await this.prisma.task.create({
             data: {
                 collegeId: this.getCurrentCollegeIdOrThrow(),
                 title: data.title,
@@ -50,6 +53,12 @@ let TaskService = class TaskService {
                 status: client_1.TaskStatus.TODO
             }
         });
+        this.notifications.sendNotificationToUser(data.assigneeId, {
+            title: 'New Task Assigned',
+            message: `${data.title} has been assigned to you.`,
+            type: 'info',
+        });
+        return task;
     }
     async createSystemTask(data) {
         return this.prisma.task.create({
@@ -121,6 +130,7 @@ exports.TaskService = TaskService;
 exports.TaskService = TaskService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        nestjs_cls_1.ClsService])
+        nestjs_cls_1.ClsService,
+        notification_gateway_1.NotificationGateway])
 ], TaskService);
 //# sourceMappingURL=task.service.js.map

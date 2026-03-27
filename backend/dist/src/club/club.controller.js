@@ -65,11 +65,17 @@ let ClubController = class ClubController {
     async getMyInvitations(req) {
         return this.clubService.getInvitationsForUser(req.user.userId);
     }
+    async getMyRequests(req) {
+        return this.clubService.getRequestsForUser(req.user.userId);
+    }
     async respondToInvite(inviteId, req, body) {
         return this.clubService.respondToInvitation(inviteId, req.user.userId, body.status);
     }
     async getMembers(clubId) {
         return this.clubService.getMembers(clubId);
+    }
+    async updateMemberRole(clubId, memberId, req, body) {
+        return this.clubService.updateMemberRole(clubId, memberId, req.user.userId, body.customRole);
     }
     async getClub(clubId) {
         return this.clubService.getClubById(clubId);
@@ -162,6 +168,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ClubController.prototype, "getMyInvitations", null);
 __decorate([
+    (0, common_1.Get)('my-requests'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ClubController.prototype, "getMyRequests", null);
+__decorate([
     (0, common_1.Patch)('invitation/:id/respond'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),
@@ -177,6 +190,17 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ClubController.prototype, "getMembers", null);
+__decorate([
+    (0, common_1.Patch)(':id/members/:memberId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.PRESIDENT, client_1.Role.VP),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('memberId')),
+    __param(2, (0, common_1.Request)()),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ClubController.prototype, "updateMemberRole", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Get)(':id'),

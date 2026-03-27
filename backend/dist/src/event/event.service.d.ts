@@ -3,7 +3,9 @@ import { AiService } from '../ai/ai.service';
 import { AlgorandService } from '../finance/algorand.service';
 import { InsightsService } from '../insights/insights.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGateway } from '../notification/notification/notification.gateway';
 import { PrismaService } from '../prisma/prisma.service';
+import { TokenService } from '../token/token.service';
 export declare class EventService {
     private readonly prisma;
     private readonly cls;
@@ -11,7 +13,9 @@ export declare class EventService {
     private readonly mailService;
     private readonly algorand;
     private readonly insights;
-    constructor(prisma: PrismaService, cls: ClsService, aiService: AiService, mailService: MailService, algorand: AlgorandService, insights: InsightsService);
+    private readonly notifications;
+    private readonly tokenService;
+    constructor(prisma: PrismaService, cls: ClsService, aiService: AiService, mailService: MailService, algorand: AlgorandService, insights: InsightsService, notifications: NotificationGateway, tokenService: TokenService);
     createEvent(data: {
         title: string;
         description: string;
@@ -28,16 +32,17 @@ export declare class EventService {
             name: string;
         };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -47,7 +52,6 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     updateEvent(eventId: string, requesterId: string, data: {
         title?: string;
@@ -59,16 +63,17 @@ export declare class EventService {
         budget?: number;
         isPublic?: boolean;
     }): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -78,19 +83,19 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     deleteEvent(eventId: string, requesterId: string): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -100,23 +105,23 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     getPendingApprovals(coordinatorId: string): Promise<({
         club: {
             name: string;
         };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -126,19 +131,19 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     })[]>;
     approveEvent(eventId: string, coordinatorId: string, remarks?: string): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -148,19 +153,19 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     rejectEvent(eventId: string, coordinatorId: string, remarks?: string): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -170,23 +175,23 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     getPublishableEvents(userId: string): Promise<({
         club: {
             name: string;
         };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -196,19 +201,19 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     })[]>;
     makeEventPublic(eventId: string, userId: string): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -218,19 +223,19 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     concludeEvent(eventId: string, requesterId: string): Promise<{
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -240,27 +245,27 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     getPublicEvents(): Promise<({
-        club: {
-            name: string;
-            description: string;
-        };
         registrations: {
             id: string;
         }[];
+        club: {
+            name: string;
+            description: string;
+        };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -270,37 +275,37 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     })[]>;
     getEventById(eventId: string): Promise<{
-        club: {
-            id: string;
-            name: string;
-            description: string;
-        };
-        proposals: {
-            id: string;
-            createdAt: Date;
-            status: import(".prisma/client").$Enums.GovernanceProposalStatus;
-            title: string;
-        }[];
         registrations: {
             id: string;
             userId: string;
             qrCode: string | null;
             certificateUrl: string | null;
         }[];
+        proposals: {
+            id: string;
+            createdAt: Date;
+            status: import(".prisma/client").$Enums.GovernanceProposalStatus;
+            title: string;
+        }[];
+        club: {
+            id: string;
+            name: string;
+            description: string;
+        };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -310,23 +315,23 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     }>;
     getClubEvents(clubId: string): Promise<({
         club: {
             name: string;
         };
     } & {
-        collegeId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.EventStatus;
+        collegeId: string;
         description: string;
         category: string | null;
+        status: import(".prisma/client").$Enums.EventStatus;
         approvalRemarks: string | null;
         approvedAt: Date | null;
         rejectedAt: Date | null;
+        clubId: string;
         title: string;
         date: Date;
         venue: string;
@@ -336,17 +341,39 @@ export declare class EventService {
         posterPrompt: string | null;
         posterImageUrl: string | null;
         treasuryPlaceholderTxId: string | null;
-        clubId: string;
     })[]>;
-    registerForEvent(userId: string, eventId: string): Promise<{
-        collegeId: string;
+    getRegistrationsForUser(userId: string): Promise<({
+        event: {
+            id: string;
+            title: string;
+            date: Date;
+            venue: string;
+            capacity: number;
+        };
+    } & {
         id: string;
-        eventId: string;
+        collegeId: string;
         userId: string;
+        eventId: string;
         isWaitlisted: boolean;
         attended: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
+        registeredAt: Date;
+    })[]>;
+    registerForEvent(userId: string, eventId: string): Promise<{
+        id: string;
+        collegeId: string;
+        userId: string;
+        eventId: string;
+        isWaitlisted: boolean;
+        attended: boolean;
+        qrCode: string | null;
+        certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
         registeredAt: Date;
     }>;
     registerGuest(eventId: string, guest: {
@@ -355,56 +382,64 @@ export declare class EventService {
         phone: string;
         institution?: string;
     }): Promise<{
-        collegeId: string;
         id: string;
-        eventId: string;
+        collegeId: string;
         userId: string;
+        eventId: string;
         isWaitlisted: boolean;
         attended: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
         registeredAt: Date;
     }>;
     getEventRegistrations(eventId: string): Promise<({
         user: {
             id: string;
             name: string;
-            walletAddress: string | null;
             email: string;
             studentId: string | null;
             role: import(".prisma/client").$Enums.Role;
+            walletAddress: string | null;
         };
     } & {
-        collegeId: string;
         id: string;
-        eventId: string;
+        collegeId: string;
         userId: string;
+        eventId: string;
         isWaitlisted: boolean;
         attended: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
         registeredAt: Date;
     })[]>;
     markAttendance(registrationId: string, attended: boolean): Promise<{
-        collegeId: string;
         id: string;
-        eventId: string;
+        collegeId: string;
         userId: string;
+        eventId: string;
         isWaitlisted: boolean;
         attended: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
         registeredAt: Date;
     }>;
     markAttendanceByQR(qrCode: string): Promise<{
-        collegeId: string;
         id: string;
-        eventId: string;
+        collegeId: string;
         userId: string;
+        eventId: string;
         isWaitlisted: boolean;
         attended: boolean;
         qrCode: string | null;
         certificateUrl: string | null;
+        guestPhone: string | null;
+        guestInstitution: string | null;
         registeredAt: Date;
     }>;
     private getManagedEvent;

@@ -1,6 +1,8 @@
 -- Migration: Add collegeId to existing tables and backfill with a default college
 -- Run this against your Supabase PostgreSQL directly before running `prisma db push`
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Step 1: Create the College and CollegeConfig tables (if they don't exist)
 CREATE TABLE IF NOT EXISTS "College" (
   "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
@@ -38,6 +40,12 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 UPDATE "Club" SET "collegeId" = 'default-college-001' WHERE "collegeId" IS NULL;
 ALTER TABLE "Club" ALTER COLUMN "collegeId" SET NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE "Club" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+UPDATE "Club" SET "updatedAt" = COALESCE("updatedAt", "createdAt", CURRENT_TIMESTAMP);
+ALTER TABLE "Club" ALTER COLUMN "updatedAt" SET NOT NULL;
 
 DO $$ BEGIN
   ALTER TABLE "Event" ADD COLUMN "collegeId" TEXT;
@@ -45,6 +53,12 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 UPDATE "Event" SET "collegeId" = 'default-college-001' WHERE "collegeId" IS NULL;
 ALTER TABLE "Event" ALTER COLUMN "collegeId" SET NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE "Event" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+UPDATE "Event" SET "updatedAt" = COALESCE("updatedAt", "createdAt", CURRENT_TIMESTAMP);
+ALTER TABLE "Event" ALTER COLUMN "updatedAt" SET NOT NULL;
 
 DO $$ BEGIN
   ALTER TABLE "Sponsor" ADD COLUMN "collegeId" TEXT;
@@ -52,6 +66,12 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 UPDATE "Sponsor" SET "collegeId" = 'default-college-001' WHERE "collegeId" IS NULL;
 ALTER TABLE "Sponsor" ALTER COLUMN "collegeId" SET NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE "Sponsor" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+UPDATE "Sponsor" SET "updatedAt" = COALESCE("updatedAt", "createdAt", CURRENT_TIMESTAMP);
+ALTER TABLE "Sponsor" ALTER COLUMN "updatedAt" SET NOT NULL;
 
 DO $$ BEGIN
   ALTER TABLE "Transaction" ADD COLUMN "collegeId" TEXT;

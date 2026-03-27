@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskStatus, TaskPriority } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
+import { NotificationGateway } from '../notification/notification/notification.gateway';
 
 @Injectable()
 export class TaskService {
   constructor(
     private prisma: PrismaService,
     private readonly cls: ClsService,
+    private readonly notifications: NotificationGateway,
   ) {}
 
   async createTask(data: { 
@@ -36,7 +38,7 @@ export class TaskService {
       throw new BadRequestException('Assignee must be a member of this club');
     }
 
-    return this.prisma.task.create({
+    const task = await this.prisma.task.create({
       data: {
         collegeId: this.getCurrentCollegeIdOrThrow(),
         title: data.title,
@@ -48,6 +50,12 @@ export class TaskService {
         status: TaskStatus.TODO
       }
     });
+    this.notifications.sendNotificationToUser(data.assigneeId, {
+      title: 'New Task Assigned',
+      message: `${data.title} has been assigned to you.`,
+      type: 'info',
+    });
+    return task;
   }
 
   async createSystemTask(data: {

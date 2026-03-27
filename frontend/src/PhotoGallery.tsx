@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from './store';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch, apiRequest } from './lib/api';
 
 interface Photo {
   name: string;
@@ -11,9 +12,10 @@ interface Photo {
 }
 
 export default function PhotoGallery() {
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   const [clubId, setClubId] = useState('');
+  const [clubName, setClubName] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,18 +27,20 @@ export default function PhotoGallery() {
       return;
     }
     const autoLoad = async () => {
-      if (['PRESIDENT', 'VP'].includes(user.role)) {
-        const res = await fetch('http://localhost:3000/club/my-club', {
-           headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const club = await res.json();
-          setClubId(club.id);
+      try {
+        if (['PRESIDENT', 'VP'].includes(user.role)) {
+          const club = await apiFetch('/club/my-club');
+          if (club?.id) {
+            setClubId(club.id);
+            setClubName(club.name ?? '');
+          }
         }
+      } catch (error) {
+        console.error(error);
       }
     };
     autoLoad();
-  }, [user, navigate, token]);
+  }, [user, navigate]);
 
   useEffect(() => {
     if (clubId) loadGallery();
@@ -46,11 +50,15 @@ export default function PhotoGallery() {
     if (!clubId) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/media/gallery/${clubId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setPhotos(await res.json());
-      else alert('Could not load gallery. Check the Club ID.');
+      const [gallery, club] = await Promise.all([
+        apiFetch(`/media/gallery/${clubId}`),
+        apiFetch(`/club/${clubId}`).catch(() => null),
+      ]);
+      setPhotos(gallery ?? []);
+      setClubName(club?.name ?? '');
+    } catch (error) {
+      console.error(error);
+      alert('Could not load gallery. Check the club access or MinIO connection.');
     } finally {
       setLoading(false);
     }
@@ -61,18 +69,18 @@ export default function PhotoGallery() {
     setUploading(true);
     try {
       const formData = new FormData();
-      Array.from(e.target.files).forEach(f => formData.append('files', f));
-      const res = await fetch(`http://localhost:3000/media/upload/${clubId}`, {
+      Array.from(e.target.files).forEach((file) => formData.append('files', file));
+      const response = await apiRequest(`/media/upload/${clubId}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (res.ok) {
+      if (response.ok) {
         alert('Photos uploaded successfully!');
-        loadGallery();
-      } else {
-        alert('Upload failed. Make sure MinIO is running.');
+        await loadGallery();
       }
+    } catch (error) {
+      console.error(error);
+      alert('Upload failed. Make sure MinIO is running.');
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -80,17 +88,20 @@ export default function PhotoGallery() {
   };
 
   const handleDownload = async (photo: Photo) => {
-    const res = await fetch(`http://localhost:3000/media/download/${clubId}/${photo.name}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const blob = await res.blob();
+    try {
+      const response = await apiRequest(
+        `/media/download/${clubId}/${photo.name}`,
+      );
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = photo.name;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert('Could not download this photo right now.');
     }
   };
 
@@ -114,6 +125,11 @@ export default function PhotoGallery() {
             {loading ? 'Loading...' : 'Load Gallery'}
           </button>
         </div>
+        {clubName ? (
+          <div className="mt-3 text-sm text-slate-500">
+            Viewing gallery for <span className="font-semibold text-slate-800">{clubName}</span>
+          </div>
+        ) : null}
         {canUpload && clubId && (
           <div className="mt-4">
             <label className={`cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${uploading ? 'bg-slate-300 text-slate-500' : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-md'}`}>

@@ -4,6 +4,7 @@ import type { RootState } from './store';
 import { useNavigate, Link } from 'react-router-dom';
 import { X, Mail, CheckCircle, AlertCircle, RefreshCw, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { apiFetch } from './lib/api';
 
 interface Coordinator {
   id: string;
@@ -15,7 +16,7 @@ interface Coordinator {
 }
 
 export default function AdminCoordinators() {
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   
   const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
@@ -38,12 +39,8 @@ export default function AdminCoordinators() {
   const fetchCoordinators = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/admin/coordinators', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setCoordinators(await res.json());
-      }
+      const data = await apiFetch('/admin/coordinators');
+      setCoordinators(data ?? []);
     } finally {
       setLoading(false);
     }
@@ -55,27 +52,17 @@ export default function AdminCoordinators() {
     setInviteLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3000/admin/invite-coordinator', {
+      await apiFetch('/admin/invite-coordinator', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ name: inviteName, email: inviteEmail }),
       });
-
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Invite sent to ${inviteEmail}`);
-        setShowModal(false);
-        setInviteName('');
-        setInviteEmail('');
-        fetchCoordinators();
-      } else {
-        setInviteError(data.message || 'Failed to send invite');
-      }
+      toast.success(`Invite sent to ${inviteEmail}`);
+      setShowModal(false);
+      setInviteName('');
+      setInviteEmail('');
+      fetchCoordinators();
     } catch (err) {
-      setInviteError('Network error');
+      setInviteError(err instanceof Error ? err.message : 'Network error');
     } finally {
       setInviteLoading(false);
     }
@@ -83,18 +70,12 @@ export default function AdminCoordinators() {
 
   const handleResend = async (userId: string, email: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/admin/resend-invite/${userId}`, {
+      await apiFetch(`/admin/resend-invite/${userId}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        toast.info(`Resent invite to ${email}`);
-      } else {
-        const data = await res.json();
-        toast.error(data.message || 'Failed to resend invite');
-      }
+      toast.info(`Resent invite to ${email}`);
     } catch (err) {
-      toast.error('Network error');
+      toast.error(err instanceof Error ? err.message : 'Network error');
     }
   };
 

@@ -18,7 +18,6 @@ export default function CreateEvent() {
     venue: '',
     capacity: '50',
     budget: '',
-    isPublic: false,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -60,11 +59,11 @@ export default function CreateEvent() {
           capacity: parseInt(form.capacity, 10),
           budget: form.budget ? parseFloat(form.budget) : 0,
           clubId: club.id,
-          isPublic: form.isPublic,
+          isPublic: false,
         }),
       });
       alert(
-        'Event drafted successfully. Treasury placeholder and PoP setup task were queued automatically.',
+        'Event drafted successfully. Your coordinator can review it next, and you can publish it after approval.',
       );
       navigate('/publish-events');
     } catch (error) {
@@ -221,19 +220,10 @@ export default function CreateEvent() {
               placeholder="e.g. 5000"
             />
           </div>
-
-          <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-            <input
-              type="checkbox"
-              checked={form.isPublic}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, isPublic: e.target.checked }))
-              }
-            />
-            <span className="text-sm text-slate-700 font-medium">
-              Mark public immediately after approval
-            </span>
-          </label>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Events stay private while pending. After coordinator approval, you
+            can publish them from the Event Ops board.
+          </div>
         </div>
 
         <button

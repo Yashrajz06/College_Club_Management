@@ -1,12 +1,14 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGateway } from '../notification/notification/notification.gateway';
 import { InviteCoordinatorDto } from '../auth/dto/invite-coordinator.dto';
 import { ClsService } from 'nestjs-cls';
 export declare class AdminService {
     private readonly prisma;
     private readonly mailService;
     private readonly cls;
-    constructor(prisma: PrismaService, mailService: MailService, cls: ClsService);
+    private readonly notifications;
+    constructor(prisma: PrismaService, mailService: MailService, cls: ClsService, notifications: NotificationGateway);
     inviteCoordinator(dto: InviteCoordinatorDto): Promise<{
         message: string;
     }>;
@@ -15,8 +17,8 @@ export declare class AdminService {
     }>;
     getCoordinators(): Promise<{
         id: string;
-        createdAt: Date;
         name: string;
+        createdAt: Date;
         email: string;
         isVerified: boolean;
         coordinatedClubs: {

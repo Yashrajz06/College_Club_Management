@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from './store';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from './lib/api';
 
 interface Invitation {
   id: string;
@@ -20,16 +21,30 @@ interface Event {
 interface Registration {
   id: string;
   certificateUrl?: string;
-  event: { title: string; date: string };
+  qrCode?: string;
+  isWaitlisted: boolean;
+  attended: boolean;
+  registeredAt: string;
+  event: { id: string; title: string; date: string; venue: string; capacity: number };
+}
+
+interface ClubRequest {
+  id: string;
+  name: string;
+  category: string;
+  status: string;
+  vp?: { name: string; email: string } | null;
+  coordinator?: { name: string; email: string } | null;
 }
 
 export default function MemberDashboard() {
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [clubRequests, setClubRequests] = useState<ClubRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,41 +58,48 @@ export default function MemberDashboard() {
   const refreshData = async () => {
     setLoading(true);
     try {
-      const [invRes, taskRes, eventRes, regRes] = await Promise.all([
-        fetch('http://localhost:3000/club/my-invitations', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:3000/task/my-tasks', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:3000/event/public', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:3000/event/my-registrations', { headers: { Authorization: `Bearer ${token}` } }),
+      const [invData, taskData, eventData, regData, requestData] = await Promise.all([
+        apiFetch('/club/my-invitations'),
+        apiFetch('/task/my-tasks'),
+        apiFetch('/event/public'),
+        apiFetch('/event/my-registrations'),
+        apiFetch('/club/my-requests'),
       ]);
-      if (invRes.ok) setInvitations(await invRes.json());
-      if (taskRes.ok) setTasks(await taskRes.json());
-      if (eventRes.ok) setUpcomingEvents(await eventRes.json());
-      if (regRes && regRes.ok) setRegistrations(await regRes.json());
+      setInvitations(invData ?? []);
+      setTasks(taskData ?? []);
+      setUpcomingEvents(eventData ?? []);
+      setRegistrations(regData ?? []);
+      setClubRequests(requestData ?? []);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRespond = async (id: string, status: 'ACCEPTED' | 'REJECTED') => {
-    const res = await fetch(`http://localhost:3000/club/invitation/${id}/respond`, {
+    const res = await apiFetch(`/club/invitation/${id}/respond`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status })
     });
-    if (res.ok) {
+    if (res !== undefined) {
       alert(`Invitation ${status.toLowerCase()}!`);
       refreshData();
     }
   };
 
   const updateTaskStatus = async (id: string, status: string) => {
-    const res = await fetch(`http://localhost:3000/task/${id}/status`, {
+    const res = await apiFetch(`/task/${id}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
     });
-    if (res.ok) refreshData();
+    if (res !== undefined) refreshData();
   };
+
+  const confirmedRegistrations = registrations.filter(
+    (registration) => !registration.isWaitlisted,
+  );
+  const waitlistedRegistrations = registrations.filter(
+    (registration) => registration.isWaitlisted,
+  );
 
   if (loading && invitations.length === 0) return <div className="p-12 text-center animate-pulse text-slate-400">Loading Dashboard...</div>;
 
@@ -115,6 +137,33 @@ export default function MemberDashboard() {
         </div>
       )}
 
+      {clubRequests.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h3 className="text-lg font-black text-slate-900">
+            Your Club Requests
+          </h3>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {clubRequests.map((club) => (
+              <div key={club.id} className="rounded-2xl border border-slate-100 p-4 bg-slate-50">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-slate-900">{club.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">{club.category}</div>
+                  </div>
+                  <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest">
+                    {club.status}
+                  </span>
+                </div>
+                <div className="mt-3 text-xs text-slate-500 space-y-1">
+                  <div>VP: {club.vp?.name || 'Pending'}</div>
+                  <div>Coordinator: {club.coordinator?.name || 'Pending'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Certificates Section */}
       {registrations.some(r => r.certificateUrl) && (
         <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-6 text-white shadow-xl shadow-amber-200/50 border-4 border-white">
@@ -136,6 +185,71 @@ export default function MemberDashboard() {
                         VIEW CERTIFICATE
                       </button>
                    </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {registrations.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-lg font-black text-slate-900">Your Event Registrations</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Confirmed registrations and waitlist status in one place.
+              </p>
+            </div>
+            <div className="flex gap-2 text-xs font-black uppercase tracking-widest">
+              <span className="px-3 py-2 rounded-full bg-emerald-50 text-emerald-700">
+                Confirmed {confirmedRegistrations.length}
+              </span>
+              <span className="px-3 py-2 rounded-full bg-amber-50 text-amber-700">
+                Waitlist {waitlistedRegistrations.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {registrations.map((registration) => (
+              <div
+                key={registration.id}
+                className="rounded-2xl border border-slate-100 p-5 bg-slate-50 cursor-pointer hover:bg-white hover:shadow-lg transition-all"
+                onClick={() => navigate(`/events/${registration.event.id}`)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-slate-900">{registration.event.title}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {new Date(registration.event.date).toLocaleString()} • {registration.event.venue}
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      registration.isWaitlisted
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    {registration.isWaitlisted ? 'Waitlisted' : 'Confirmed'}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                  <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
+                    Registered {new Date(registration.registeredAt).toLocaleDateString()}
+                  </span>
+                  {registration.attended ? (
+                    <span className="px-2 py-1 rounded-full bg-sky-50 text-sky-700 font-bold">
+                      Attendance Marked
+                    </span>
+                  ) : null}
+                  {registration.qrCode ? (
+                    <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">
+                      QR Ready
+                    </span>
+                  ) : null}
                 </div>
               </div>
             ))}

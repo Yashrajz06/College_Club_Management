@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGateway } from '../notification/notification/notification.gateway';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
 import { InviteCoordinatorDto } from '../auth/dto/invite-coordinator.dto';
@@ -12,6 +13,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly cls: ClsService,
+    private readonly notifications: NotificationGateway,
   ) {}
 
   async inviteCoordinator(dto: InviteCoordinatorDto) {
@@ -39,12 +41,18 @@ export class AdminService {
 
     const inviteLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
     await this.mailService.sendInviteEmail(dto.email, dto.name, inviteLink);
+    this.notifications.sendGlobalNotification({
+      title: 'Coordinator Invited',
+      message: `${dto.name} was invited as a faculty coordinator.`,
+    });
 
     return { message: 'Invite sent successfully' };
   }
 
   async resendInvite(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, collegeId: this.getCurrentCollegeIdOrThrow() },
+    });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -73,7 +81,10 @@ export class AdminService {
 
   async getCoordinators() {
     const coordinators = await this.prisma.user.findMany({
-      where: { role: Role.COORDINATOR },
+      where: {
+        role: Role.COORDINATOR,
+        collegeId: this.getCurrentCollegeIdOrThrow(),
+      },
       select: {
         id: true,
         name: true,

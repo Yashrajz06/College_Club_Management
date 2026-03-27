@@ -1,228 +1,463 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
-import type { RootState } from './store';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch, apiRequest } from './lib/api';
+import type { RootState } from './store';
+
+interface EventOption {
+  id: string;
+  title: string;
+  date: string;
+  venue: string;
+  status: string;
+  isPublic: boolean;
+}
 
 interface Registration {
   id: string;
   attended: boolean;
   isWaitlisted: boolean;
   registeredAt: string;
-  user: { id: string; name: string; email: string; role: string; studentId?: string };
+  guestPhone?: string | null;
+  guestInstitution?: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    studentId?: string | null;
+  };
 }
 
 export default function AttendanceTracker({ eventId }: { eventId?: string }) {
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
-  const [eventIdInput, setEventIdInput] = useState(eventId || '');
+
+  const [events, setEvents] = useState<EventOption[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState(eventId || '');
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [concluded, setConcluded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [qrInput, setQrInput] = useState('');
   const [scanning, setScanning] = useState(false);
+  const [concluding, setConcluding] = useState(false);
 
   useEffect(() => {
     if (!user || !['PRESIDENT', 'VP', 'COORDINATOR', 'ADMIN'].includes(user.role)) {
       navigate('/login');
+      return;
     }
-  }, [user, navigate]);
 
-  const fetchRegistrations = async () => {
-    if (!eventIdInput) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`http://localhost:3000/event/${eventIdInput}/registrations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setRegistrations(await res.json());
-      else alert('Could not load registrations. Check the Event ID.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadEvents = async () => {
+      setLoading(true);
+      try {
+        if (user.role === 'COORDINATOR') {
+          const pending = await apiFetch('/event/pending-approvals');
+          const normalized = (pending ?? []).map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            date: item.date,
+            venue: item.venue,
+            status: item.status,
+            isPublic: item.isPublic,
+          }));
+          setEvents(normalized);
+          setSelectedEventId((current) => current || normalized[0]?.id || '');
+          return;
+        }
 
-  const toggleAttendance = async (reg: Registration) => {
-    setSaving(reg.id);
+        const myClub = await apiFetch('/club/my-club');
+        if (!myClub?.id) {
+          setEvents([]);
+          setSelectedEventId('');
+          return;
+        }
+        const eventList = await apiFetch(`/event/club/${myClub.id}`);
+        setEvents(eventList ?? []);
+        setSelectedEventId((current) => current || eventId || eventList?.[0]?.id || '');
+      } catch (error) {
+        console.error(error);
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [eventId, navigate, user]);
+
+  useEffect(() => {
+    const fetchRegistrations = async () => {
+      if (!selectedEventId) {
+        setRegistrations([]);
+        return;
+      }
+
+      try {
+        const data = await apiFetch(`/event/${selectedEventId}/registrations`);
+        setRegistrations(data ?? []);
+      } catch (error) {
+        console.error(error);
+        setRegistrations([]);
+      }
+    };
+
+    fetchRegistrations();
+  }, [selectedEventId]);
+
+  const toggleAttendance = async (registration: Registration) => {
+    if (!selectedEventId) return;
+
+    setSaving(registration.id);
     try {
-      await fetch(`http://localhost:3000/event/${eventIdInput}/attendance`, {
+      await apiFetch(`/event/${selectedEventId}/attendance`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ registrationId: reg.id, attended: !reg.attended }),
+        body: JSON.stringify({
+          registrationId: registration.id,
+          attended: !registration.attended,
+        }),
       });
-      setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, attended: !r.attended } : r));
+      setRegistrations((current) =>
+        current.map((item) =>
+          item.id === registration.id
+            ? { ...item, attended: !item.attended }
+            : item,
+        ),
+      );
     } finally {
       setSaving(null);
     }
   };
 
   const handleConclude = async () => {
-    if (!window.confirm('Conclude this event? This action is permanent.')) return;
-    await fetch(`http://localhost:3000/event/${eventIdInput}/conclude`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setConcluded(true);
-    alert('Event marked as Concluded!');
+    if (!selectedEventId) return;
+    const confirmed = window.confirm(
+      'Conclude this event and lock its operational state?',
+    );
+    if (!confirmed) return;
+
+    setConcluding(true);
+    try {
+      await apiFetch(`/event/${selectedEventId}/conclude`, { method: 'PATCH' });
+      setEvents((current) =>
+        current.map((event) =>
+          event.id === selectedEventId
+            ? { ...event, status: 'CONCLUDED' }
+            : event,
+        ),
+      );
+      alert('Event concluded successfully.');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to conclude event');
+    } finally {
+      setConcluding(false);
+    }
   };
 
   const handleQRScan = async () => {
     if (!qrInput) return;
     setScanning(true);
     try {
-      const res = await fetch(`http://localhost:3000/event/attendance/qr`, {
+      await apiFetch('/event/attendance/qr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ qrCode: qrInput })
+        body: JSON.stringify({ qrCode: qrInput }),
       });
-      if (res.ok) {
-        alert('Attendance marked via QR!');
-        setQrInput('');
-        fetchRegistrations();
-      } else {
-        const err = await res.json();
-        alert(err.message || 'Invalid QR Code');
-      }
+      setQrInput('');
+      const data = await apiFetch(`/event/${selectedEventId}/registrations`);
+      setRegistrations(data ?? []);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Invalid QR code');
     } finally {
       setScanning(false);
     }
   };
 
-  const members = registrations.filter(r => !r.isWaitlisted);
-  const waitlist = registrations.filter(r => r.isWaitlisted);
-  const presentCount = members.filter(r => r.attended).length;
+  const downloadReport = async () => {
+    if (!selectedEventId) return;
+    setDownloading(true);
+    try {
+      const response = await apiRequest(`/report/event/${selectedEventId}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `event_${selectedEventId}_report.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to download report');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const selectedEvent = events.find((item) => item.id === selectedEventId) || null;
+  const waitlisted = registrations.filter((registration) => registration.isWaitlisted);
+  const activeRegistrations = registrations.filter(
+    (registration) => !registration.isWaitlisted,
+  );
+  const memberRegistrations = activeRegistrations.filter(
+    (registration) => registration.user.role !== 'GUEST',
+  );
+  const guestRegistrations = activeRegistrations.filter(
+    (registration) => registration.user.role === 'GUEST',
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: activeRegistrations.length,
+      members: memberRegistrations.length,
+      guests: guestRegistrations.length,
+      present: activeRegistrations.filter((registration) => registration.attended).length,
+      waitlisted: waitlisted.length,
+    }),
+    [activeRegistrations, guestRegistrations.length, memberRegistrations.length, waitlisted.length],
+  );
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center animate-pulse text-slate-400">
+        Loading attendance desk...
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-900">Attendance Tracker</h1>
-        <p className="text-slate-500 mt-1">Mark attendees for an event and conclude it when done.</p>
+        <h1 className="text-3xl font-extrabold text-slate-900">Attendance Desk</h1>
+        <p className="text-slate-500 mt-1">
+          Track members and guests separately, scan QR tokens, and generate the final report.
+        </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <label className="block text-sm font-semibold text-slate-700 mb-2">Event ID</label>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={eventIdInput}
-            onChange={e => setEventIdInput(e.target.value)}
-            className="flex-grow px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            placeholder="Paste the Event UUID here..."
-          />
-          <button onClick={fetchRegistrations} disabled={loading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50">
-          </button>
-        </div>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <label className="block text-sm font-semibold text-slate-700">
+          Select Event
+        </label>
+        <select
+          value={selectedEventId}
+          onChange={(e) => setSelectedEventId(e.target.value)}
+          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+        >
+          <option value="">Choose an event</option>
+          {events.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.title} • {new Date(event.date).toLocaleDateString()} • {event.status}
+            </option>
+          ))}
+        </select>
+        {!events.length ? (
+          <p className="text-sm text-slate-500">
+            No events available for attendance tracking yet.
+          </p>
+        ) : null}
       </div>
 
-      <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row items-center gap-6">
-        <div className="flex-shrink-0 w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-3xl">📷</div>
-        <div className="flex-grow space-y-1">
-          <h3 className="font-black text-lg">QR Scan Simulator</h3>
-          <p className="text-indigo-100 text-xs font-bold uppercase tracking-wider">Production Attendance Verification</p>
-        </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <input 
-            type="text" 
-            placeholder="Scan/Enter QR Token..." 
-            className="flex-grow md:w-64 bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm outline-none placeholder:text-indigo-200"
-            value={qrInput}
-            onChange={(e) => setQrInput(e.target.value)}
-          />
-          <button 
-            onClick={handleQRScan}
-            disabled={scanning}
-            className="bg-white text-indigo-600 px-6 py-2 rounded-xl text-xs font-black hover:scale-105 transition-all">
-            {scanning ? '...' : 'VERIFY'}
-          </button>
-        </div>
-      </div>
-
-      {registrations.length > 0 && (
+      {selectedEvent ? (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-5">
+          <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-100">
+                Event Overview
+              </div>
+              <h2 className="text-2xl font-black">{selectedEvent.title}</h2>
+              <div className="text-sm text-indigo-100">
+                {new Date(selectedEvent.date).toLocaleString()} • {selectedEvent.venue}
+              </div>
+              <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                <span className="px-2 py-1 rounded-full bg-white/10 font-bold">
+                  {selectedEvent.status}
+                </span>
+                {selectedEvent.isPublic ? (
+                  <span className="px-2 py-1 rounded-full bg-emerald-500/20 font-bold">
+                    Public
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-100">
+                QR Attendance
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter or scan QR token"
+                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm outline-none placeholder:text-indigo-200"
+                  value={qrInput}
+                  onChange={(e) => setQrInput(e.target.value)}
+                />
+                <button
+                  onClick={handleQRScan}
+                  disabled={scanning || !selectedEventId}
+                  className="bg-white text-indigo-600 px-5 py-3 rounded-xl text-sm font-black hover:scale-105 transition-all disabled:opacity-60"
+                >
+                  {scanning ? '...' : 'Verify'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
             {[
-              { label: 'Total Registered', value: members.length, color: 'text-blue-600' },
-              { label: 'Present', value: presentCount, color: 'text-emerald-600' },
-              { label: 'On Waitlist', value: waitlist.length, color: 'text-amber-600' },
-            ].map(s => (
-              <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
-                <div className={`text-4xl font-black ${s.color}`}>{s.value}</div>
-                <div className="text-slate-500 text-sm mt-1">{s.label}</div>
+              { label: 'Active', value: stats.total, color: 'text-blue-600' },
+              { label: 'Members', value: stats.members, color: 'text-indigo-600' },
+              { label: 'Guests', value: stats.guests, color: 'text-sky-600' },
+              { label: 'Present', value: stats.present, color: 'text-emerald-600' },
+              { label: 'Waitlist', value: stats.waitlisted, color: 'text-amber-600' },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
+                <div className={`text-4xl font-black ${stat.color}`}>{stat.value}</div>
+                <div className="text-slate-500 text-sm mt-1">{stat.label}</div>
               </div>
             ))}
           </div>
 
-          {/* Registered */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">Registered Attendees</h2>
-            <div className="space-y-2">
-              {members.map(reg => (
-                <div key={reg.id} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${reg.attended ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}>
-                  <div>
-                    <div className="font-semibold text-slate-900">{reg.user.name}</div>
-                    <div className="text-xs text-slate-500">{reg.user.email} {reg.user.studentId ? `· ${reg.user.studentId}` : ''} · <span className="capitalize">{reg.user.role.toLowerCase()}</span></div>
-                  </div>
-                  <button
-                    onClick={() => toggleAttendance(reg)}
-                    disabled={saving === reg.id}
-                    className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${reg.attended ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
-                    {saving === reg.id ? '...' : reg.attended ? '✓ Present' : 'Mark Present'}
-                  </button>
-                </div>
-              ))}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Member Attendance</h2>
+              <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+                {memberRegistrations.length === 0 ? (
+                  <p className="text-sm text-slate-500">No member registrations yet.</p>
+                ) : (
+                  memberRegistrations.map((registration) => (
+                    <div
+                      key={registration.id}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                        registration.attended
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : 'bg-slate-50 border-slate-100'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          {registration.user.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {registration.user.email}
+                          {registration.user.studentId ? ` • ${registration.user.studentId}` : ''}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleAttendance(registration)}
+                        disabled={saving === registration.id}
+                        className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+                          registration.attended
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                      >
+                        {saving === registration.id
+                          ? '...'
+                          : registration.attended
+                            ? 'Present'
+                            : 'Mark Present'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Guest Attendance</h2>
+              <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+                {guestRegistrations.length === 0 ? (
+                  <p className="text-sm text-slate-500">No guest registrations yet.</p>
+                ) : (
+                  guestRegistrations.map((registration) => (
+                    <div
+                      key={registration.id}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                        registration.attended
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : 'bg-slate-50 border-slate-100'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          {registration.user.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {registration.user.email}
+                        </div>
+                        {registration.guestPhone ? (
+                          <div className="text-xs text-slate-500">
+                            {registration.guestPhone}
+                          </div>
+                        ) : null}
+                        {registration.guestInstitution ? (
+                          <div className="text-xs text-slate-500">
+                            {registration.guestInstitution}
+                          </div>
+                        ) : null}
+                      </div>
+                      <button
+                        onClick={() => toggleAttendance(registration)}
+                        disabled={saving === registration.id}
+                        className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+                          registration.attended
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                      >
+                        {saving === registration.id
+                          ? '...'
+                          : registration.attended
+                            ? 'Present'
+                            : 'Mark Present'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Waitlist */}
-          {waitlist.length > 0 && (
+          {waitlisted.length > 0 ? (
             <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Waitlist</h2>
               <div className="space-y-2">
-                {waitlist.map((reg, i) => (
-                  <div key={reg.id} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-100">
-                    <span className="font-black text-amber-500 text-lg">#{i + 1}</span>
+                {waitlisted.map((registration, index) => (
+                  <div key={registration.id} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-100">
+                    <span className="font-black text-amber-500 text-lg">#{index + 1}</span>
                     <div>
-                      <div className="font-semibold text-slate-900">{reg.user.name}</div>
-                      <div className="text-xs text-slate-500">{reg.user.email}</div>
+                      <div className="font-semibold text-slate-900">{registration.user.name}</div>
+                      <div className="text-xs text-slate-500">{registration.user.email}</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Conclude & Report */}
           <div className="flex justify-end gap-3">
             <button
-              onClick={async () => {
-                const res = await fetch(`http://localhost:3000/report/event/${eventIdInput}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
-                if (res.ok) {
-                  const blob = await res.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `event_${eventIdInput}_report.pdf`;
-                  a.click();
-                } else {
-                  alert('Failed to generate report.');
-                }
-              }}
-              className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2">
-              📄 Download PDF Report
+              onClick={downloadReport}
+              disabled={downloading || !selectedEventId}
+              className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-60"
+            >
+              {downloading ? 'Generating...' : 'Download PDF Report'}
             </button>
-            {!concluded && (user?.role === 'PRESIDENT' || user?.role === 'VP') && (
-              <button onClick={handleConclude}
-                className="px-8 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all">
-                Conclude Event
+            {(user?.role === 'PRESIDENT' || user?.role === 'VP') && (
+              <button
+                onClick={handleConclude}
+                disabled={concluding || selectedEvent.status === 'CONCLUDED'}
+                className="px-8 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all disabled:opacity-60"
+              >
+                {selectedEvent.status === 'CONCLUDED'
+                  ? 'Already Concluded'
+                  : concluding
+                    ? 'Concluding...'
+                    : 'Conclude Event'}
               </button>
             )}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

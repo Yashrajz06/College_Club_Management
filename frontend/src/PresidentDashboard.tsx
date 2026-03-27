@@ -32,21 +32,72 @@ interface ClubMember {
   };
 }
 
+interface ClubTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  status: string;
+  deadline?: string | null;
+  assignee: {
+    name: string;
+    email: string;
+  };
+}
+
+interface ClubEvent {
+  id: string;
+  title: string;
+  date: string;
+  venue: string;
+  status: string;
+  isPublic: boolean;
+  capacity: number;
+}
+
+interface EventRegistration {
+  id: string;
+  isWaitlisted: boolean;
+  attended: boolean;
+  registeredAt: string;
+  guestPhone?: string | null;
+  guestInstitution?: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    studentId?: string | null;
+  };
+}
+
 export default function PresidentDashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   const [club, setClub] = useState<ClubDetails | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
+  const [tasks, setTasks] = useState<ClubTask[]>([]);
+  const [events, setEvents] = useState<ClubEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [customRole, setCustomRole] = useState('');
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: '',
     description: '',
     category: '',
     vpEmailOrId: '',
     coordinatorEmailOrId: '',
+  });
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    assigneeId: '',
+    priority: 'MEDIUM',
+    deadline: '',
   });
 
   useEffect(() => {
@@ -67,13 +118,30 @@ export default function PresidentDashboard() {
         return;
       }
 
-      const [clubDetails, clubMembers] = await Promise.all([
+      const [clubDetails, clubMembers, clubTasks, clubEvents] = await Promise.all([
         apiFetch(`/club/${myClub.id}`),
         apiFetch(`/club/${myClub.id}/members`),
+        apiFetch(`/task/club/${myClub.id}`),
+        apiFetch(`/event/club/${myClub.id}`),
       ]);
 
       setClub(clubDetails);
       setMembers(clubMembers ?? []);
+      setTasks(clubTasks ?? []);
+      setEvents(clubEvents ?? []);
+      setSelectedEventId((current) => current || clubEvents?.[0]?.id || '');
+      setRoleDrafts(
+        Object.fromEntries(
+          (clubMembers ?? []).map((member: ClubMember) => [
+            member.id,
+            member.customRole || '',
+          ]),
+        ),
+      );
+      setTaskForm((current) => ({
+        ...current,
+        assigneeId: current.assigneeId || clubMembers?.[0]?.user.id || '',
+      }));
       setForm({
         name: clubDetails.name || '',
         description: clubDetails.description || '',
@@ -87,6 +155,112 @@ export default function PresidentDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadRegistrations = async () => {
+      if (!selectedEventId) {
+        setRegistrations([]);
+        return;
+      }
+
+      try {
+        const data = await apiFetch(`/event/${selectedEventId}/registrations`);
+        setRegistrations(data ?? []);
+      } catch (error) {
+        console.error(error);
+        setRegistrations([]);
+      }
+    };
+
+    loadRegistrations();
+  }, [selectedEventId]);
+
+  const handleMemberRoleSave = async (memberId: string) => {
+    if (!club) return;
+
+    setSaving(true);
+    try {
+      const updated = await apiFetch(`/club/${club.id}/members/${memberId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          customRole: roleDrafts[memberId] || null,
+        }),
+      });
+      setMembers((current) =>
+        current.map((member) =>
+          member.id === memberId ? { ...member, customRole: updated.customRole } : member,
+        ),
+      );
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update member role');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!club) return;
+
+    setSaving(true);
+    try {
+      await apiFetch('/task', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: taskForm.title,
+          description: taskForm.description,
+          assigneeId: taskForm.assigneeId,
+          priority: taskForm.priority,
+          deadline: taskForm.deadline || undefined,
+          clubId: club.id,
+        }),
+      });
+      setTaskForm({
+        title: '',
+        description: '',
+        assigneeId: members[0]?.user.id || '',
+        priority: 'MEDIUM',
+        deadline: '',
+      });
+      await loadClub();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to assign task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConcludeEvent = async () => {
+    if (!selectedEventId) return;
+    const confirmed = window.confirm(
+      'Mark this event as concluded and trigger report generation?',
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      await apiFetch(`/event/${selectedEventId}/conclude`, { method: 'PATCH' });
+      await loadClub();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to conclude event');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const memberRegistrations = registrations.filter(
+    (registration) => registration.user.role !== 'GUEST',
+  );
+  const guestRegistrations = registrations.filter(
+    (registration) => registration.user.role === 'GUEST',
+  );
+  const waitlistedRegistrations = registrations.filter(
+    (registration) => registration.isWaitlisted,
+  );
+  const confirmedRegistrations = registrations.filter(
+    (registration) => !registration.isWaitlisted,
+  );
+  const selectedEvent = events.find((event) => event.id === selectedEventId) || null;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,6 +539,164 @@ export default function PresidentDashboard() {
               </button>
             </form>
           </div>
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900">
+                Assign Tasks
+              </h3>
+              <span className="text-[10px] bg-slate-100 px-2 py-1 rounded-lg font-black text-slate-400 uppercase tracking-widest">
+                Delivery
+              </span>
+            </div>
+
+            <form className="space-y-5" onSubmit={handleCreateTask}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Task Title
+                  </label>
+                  <input
+                    required
+                    value={taskForm.title}
+                    onChange={(e) =>
+                      setTaskForm((current) => ({
+                        ...current,
+                        title: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10"
+                    placeholder="e.g. Finalize sponsor deck"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Assignee
+                  </label>
+                  <select
+                    required
+                    value={taskForm.assigneeId}
+                    onChange={(e) =>
+                      setTaskForm((current) => ({
+                        ...current,
+                        assigneeId: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10"
+                  >
+                    <option value="">Select member</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.user.id}>
+                        {member.user.name}
+                        {member.customRole ? ` - ${member.customRole}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Task Description
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={taskForm.description}
+                  onChange={(e) =>
+                    setTaskForm((current) => ({
+                      ...current,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10 resize-none"
+                  placeholder="Describe the deliverable and what success looks like."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Priority
+                  </label>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(e) =>
+                      setTaskForm((current) => ({
+                        ...current,
+                        priority: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Deadline
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={taskForm.deadline}
+                    onChange={(e) =>
+                      setTaskForm((current) => ({
+                        ...current,
+                        deadline: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || members.length === 0}
+                className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm rounded-2xl hover:shadow-xl transition-all disabled:opacity-60"
+              >
+                {saving ? 'Assigning...' : 'Assign Task'}
+              </button>
+            </form>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                Recent Tasks
+              </h4>
+              {tasks.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No club tasks created yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.slice(0, 4).map((task) => (
+                    <div
+                      key={task.id}
+                      className="rounded-2xl border border-slate-100 p-4 bg-slate-50"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-semibold text-slate-900">
+                            {task.title}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {task.assignee.name} • {task.priority} • {task.status}
+                          </div>
+                        </div>
+                        {task.deadline ? (
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            Due {new Date(task.deadline).toLocaleDateString()}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -398,6 +730,151 @@ export default function PresidentDashboard() {
           </div>
 
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h3 className="font-bold text-slate-900 mb-4">Event Registration Desk</h3>
+            {events.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No club events yet. Create and approve an event to monitor registrations here.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10"
+                >
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} • {event.status}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedEvent ? (
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+                    <div className="font-semibold text-slate-900">{selectedEvent.title}</div>
+                    <div className="text-xs text-slate-500">
+                      {new Date(selectedEvent.date).toLocaleString()} • {selectedEvent.venue}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                      <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
+                        {selectedEvent.status}
+                      </span>
+                      {selectedEvent.isPublic ? (
+                        <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                          Public
+                        </span>
+                      ) : null}
+                      <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">
+                        {registrations.length}/{selectedEvent.capacity} registrations
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                        {confirmedRegistrations.length} confirmed
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 font-bold">
+                        {waitlistedRegistrations.length} waitlisted
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleConcludeEvent}
+                      disabled={saving || selectedEvent.status === 'CONCLUDED'}
+                      className="w-full mt-2 px-4 py-2 text-xs font-black rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all disabled:opacity-60"
+                    >
+                      {selectedEvent.status === 'CONCLUDED'
+                        ? 'Event Already Concluded'
+                        : 'Conclude Event & Generate Report'}
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="rounded-2xl border border-slate-100 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-slate-900">Members</h4>
+                      <span className="text-xs font-bold text-slate-500">
+                        {memberRegistrations.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3 max-h-56 overflow-auto pr-1">
+                      {memberRegistrations.length === 0 ? (
+                        <p className="text-sm text-slate-500">No member registrations yet.</p>
+                      ) : (
+                        memberRegistrations.map((registration) => (
+                          <div key={registration.id} className="rounded-xl bg-slate-50 p-3">
+                            <div className="font-medium text-slate-900">
+                              {registration.user.name}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {registration.user.email}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                              {registration.user.studentId ? (
+                                <span className="text-slate-400">
+                                  {registration.user.studentId}
+                                </span>
+                              ) : null}
+                              {registration.isWaitlisted ? (
+                                <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 font-bold">
+                                  Waitlist
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-100 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-slate-900">Guests</h4>
+                      <span className="text-xs font-bold text-slate-500">
+                        {guestRegistrations.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3 max-h-56 overflow-auto pr-1">
+                      {guestRegistrations.length === 0 ? (
+                        <p className="text-sm text-slate-500">No guest registrations yet.</p>
+                      ) : (
+                        guestRegistrations.map((registration) => (
+                          <div key={registration.id} className="rounded-xl bg-slate-50 p-3">
+                            <div className="font-medium text-slate-900">
+                              {registration.user.name}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {registration.user.email}
+                            </div>
+                            {registration.guestPhone ? (
+                              <div className="text-xs text-slate-500">
+                                {registration.guestPhone}
+                              </div>
+                            ) : null}
+                            {registration.guestInstitution ? (
+                              <div className="text-xs text-slate-500">
+                                {registration.guestInstitution}
+                              </div>
+                            ) : null}
+                            <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                              <span className="px-2 py-1 rounded-full bg-sky-50 text-sky-700 font-bold">
+                                Guest
+                              </span>
+                              {registration.isWaitlisted ? (
+                                <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 font-bold">
+                                  Waitlist
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-4">Current Members</h3>
             <div className="space-y-3 max-h-[440px] overflow-auto pr-1">
               {members.map((member) => (
@@ -420,6 +897,28 @@ export default function PresidentDashboard() {
                         {member.customRole}
                       </span>
                     ) : null}
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={roleDrafts[member.id] || ''}
+                      onChange={(e) =>
+                        setRoleDrafts((current) => ({
+                          ...current,
+                          [member.id]: e.target.value,
+                        }))
+                      }
+                      className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10"
+                      placeholder="Set custom role"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleMemberRoleSave(member.id)}
+                      disabled={saving}
+                      className="px-4 py-2 text-xs font-black rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-60"
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
               ))}

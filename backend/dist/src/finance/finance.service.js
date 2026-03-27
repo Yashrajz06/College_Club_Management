@@ -8,6 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FinanceService = void 0;
 const common_1 = require("@nestjs/common");
@@ -15,14 +18,18 @@ const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const algorand_service_1 = require("./algorand.service");
 const token_gate_service_1 = require("./token-gate.service");
+const common_2 = require("@nestjs/common");
+const token_service_1 = require("../token/token.service");
 let FinanceService = class FinanceService {
     prisma;
     algorand;
     tokenGate;
-    constructor(prisma, algorand, tokenGate) {
+    tokenService;
+    constructor(prisma, algorand, tokenGate, tokenService) {
         this.prisma = prisma;
         this.algorand = algorand;
         this.tokenGate = tokenGate;
+        this.tokenService = tokenService;
     }
     async logTransaction(data) {
         await this.validateLedgerTransactionInput(data);
@@ -31,12 +38,30 @@ let FinanceService = class FinanceService {
             contractType: client_1.CollegeContractType.TREASURY,
             metadata: this.buildLedgerMetadata(data),
         });
-        return this.persistConfirmedLedgerTransaction({
+        const persisted = await this.persistConfirmedLedgerTransaction({
             ...data,
             walletAddress: onChain.sender,
             txId: onChain.txId,
             note: onChain.note,
         });
+        if (data.type === client_1.TransactionType.CREDIT && data.sponsorId && data.userId) {
+            try {
+                await this.tokenService.mintEntryToken({
+                    userId: data.userId,
+                    actionType: 'SPONSOR',
+                    walletAddress: onChain.sender,
+                    clubId: data.clubId,
+                    eventId: data.eventId,
+                    metadata: {
+                        reason: 'sponsor_contribution',
+                        sponsorId: data.sponsorId,
+                    },
+                });
+            }
+            catch (err) {
+            }
+        }
+        return persisted;
     }
     async prepareWalletTransaction(data) {
         await this.validateLedgerTransactionInput(data);
@@ -182,8 +207,10 @@ let FinanceService = class FinanceService {
 exports.FinanceService = FinanceService;
 exports.FinanceService = FinanceService = __decorate([
     (0, common_1.Injectable)(),
+    __param(3, (0, common_2.Inject)((0, common_2.forwardRef)(() => token_service_1.TokenService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         algorand_service_1.AlgorandService,
-        token_gate_service_1.TokenGateService])
+        token_gate_service_1.TokenGateService,
+        token_service_1.TokenService])
 ], FinanceService);
 //# sourceMappingURL=finance.service.js.map

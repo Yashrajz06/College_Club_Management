@@ -11,12 +11,14 @@ const common_1 = require("@nestjs/common");
 const ai_controller_1 = require("./ai.controller");
 const ai_service_1 = require("./ai.service");
 const insights_module_1 = require("../insights/insights.module");
+const governance_module_1 = require("../governance/governance.module");
+const finance_module_1 = require("../finance/finance.module");
 let AiModule = class AiModule {
 };
 exports.AiModule = AiModule;
 exports.AiModule = AiModule = __decorate([
     (0, common_1.Module)({
-        imports: [insights_module_1.InsightsModule],
+        imports: [insights_module_1.InsightsModule, governance_module_1.GovernanceModule, finance_module_1.FinanceModule],
         controllers: [ai_controller_1.AiController],
         providers: [ai_service_1.AiService],
         exports: [ai_service_1.AiService]

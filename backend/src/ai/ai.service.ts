@@ -233,6 +233,109 @@ export class AiService {
     };
   }
 
+  async generatePosterCopySuggestions(
+    eventId: string,
+    options?: { mood?: string; currentFields?: Record<string, string> },
+  ) {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId },
+      include: {
+        club: {
+          select: {
+            name: true,
+            category: true,
+            coordinator: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new BadRequestException('Event not found');
+    }
+
+    const fallback = this.getPosterCopyFallback(event, options?.currentFields);
+
+    const prompt = `
+      You are designing a hackathon/event poster copy deck for a college event.
+      Return ONLY valid JSON. No markdown. No commentary.
+
+      Event details:
+      - Title: ${event.title}
+      - Category: ${event.category || 'Campus Event'}
+      - Club: ${event.club.name}
+      - Description: ${event.description}
+      - Date: ${event.date.toLocaleDateString()}
+      - Time: ${event.date.toLocaleTimeString()}
+      - Venue: ${event.venue}
+      - Capacity: ${event.capacity}
+      - Mood: ${options?.mood || 'high-energy, cinematic'}
+
+      Existing user inputs:
+      ${JSON.stringify(options?.currentFields || {}, null, 2)}
+
+      Generate concise, high-impact poster copy inspired by modern college hackathon posters.
+      Use short phrases, strong CTA wording, and realistic content.
+
+      Required JSON keys:
+      posterTitle
+      subtitle
+      registrationBanner
+      aboutText
+      prizePool
+      dayPrizePool
+      registrationFee
+      teamSize
+      eligibility
+      dateLabel
+      timeLabel
+      venueLabel
+      website
+      coordinatorName
+      coordinatorPhone
+      studentCoordinator
+      studentPhone
+      sponsors
+      benefits
+    `;
+
+    const ollamaUrl =
+      process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
+
+    try {
+      const response = await fetch(ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3',
+          prompt,
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rawText: string = data.response || '';
+      const parsed = this.extractJsonObject(rawText);
+
+      return {
+        ...fallback,
+        ...parsed,
+      };
+    } catch (error) {
+      console.error('Poster copy generation failed, using fallback:', error);
+      return fallback;
+    }
+  }
+
   // ─────────────────────────────────────────────
   // 3. GUEST CERTIFICATES — proper implementation
   // ─────────────────────────────────────────────
@@ -483,5 +586,77 @@ export class AiService {
       console.warn('Supabase poster upload failed, using raw image data', error);
       return imageUrl;
     }
+  }
+
+  private extractJsonObject(rawText: string) {
+    const fencedMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/i);
+    const candidate = fencedMatch ? fencedMatch[1] : rawText;
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('No JSON object found in AI response');
+    }
+
+    return JSON.parse(candidate.slice(start, end + 1));
+  }
+
+  private getPosterCopyFallback(
+    event: {
+      title: string;
+      category: string | null;
+      description: string;
+      date: Date;
+      venue: string;
+      club: {
+        name: string;
+        category: string;
+        coordinator: { name: string; email: string } | null;
+      };
+    },
+    currentFields?: Record<string, string>,
+  ) {
+    return {
+      posterTitle: currentFields?.posterTitle || event.title,
+      subtitle:
+        currentFields?.subtitle ||
+        (event.category ? `${event.category} Showdown` : 'Code Together. Win Together.'),
+      registrationBanner:
+        currentFields?.registrationBanner || 'Registrations open now',
+      aboutText:
+        currentFields?.aboutText ||
+        event.description ||
+        `Join ${event.club.name} for a high-energy campus experience built for creators, problem-solvers, and future leaders.`,
+      prizePool: currentFields?.prizePool || '50,000',
+      dayPrizePool: currentFields?.dayPrizePool || '10K+ in prizes',
+      registrationFee: currentFields?.registrationFee || '149',
+      teamSize: currentFields?.teamSize || '1 to 4 Students',
+      eligibility: currentFields?.eligibility || 'Open to all branches & all years',
+      dateLabel:
+        currentFields?.dateLabel ||
+        event.date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }),
+      timeLabel:
+        currentFields?.timeLabel ||
+        event.date.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      venueLabel: currentFields?.venueLabel || event.venue,
+      website: currentFields?.website || 'Register on CampusClubs',
+      coordinatorName:
+        currentFields?.coordinatorName || event.club.coordinator?.name || 'Faculty Coordinator',
+      coordinatorPhone: currentFields?.coordinatorPhone || '+91 9000000000',
+      studentCoordinator: currentFields?.studentCoordinator || 'Student Coordinator',
+      studentPhone: currentFields?.studentPhone || '+91 9000000001',
+      sponsors:
+        currentFields?.sponsors || 'Title Sponsor\nCommunity Partner\nHospitality Partner',
+      benefits:
+        currentFields?.benefits ||
+        'Exciting prize opportunities\nInternship and career exposure\nCertificates to boost your profile\nGreat networking and goodies',
+    };
   }
 }

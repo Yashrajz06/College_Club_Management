@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import type { ReactElement } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from './store';
 import { clearCredentials } from './store/authSlice';
@@ -29,12 +30,63 @@ import { CollegeSwitcher } from './CollegeSwitcher';
 import Profile from './Profile';
 import Governance from './Governance';
 import TreasuryExplorer from './TreasuryExplorer';
-import AttendanceScanner from './AttendanceScanner';
 import MyTokens from './MyTokens';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import PublicVerifyAsset from './PublicVerifyAsset';
 import PublicVerifyToken from './PublicVerifyToken';
 import { ThemeProvider } from './ThemeProvider';
+import { getDefaultRouteForRole, type AppRole } from './lib/routing';
+
+type GuardProps = {
+  children: ReactElement;
+  allowedRoles?: AppRole[];
+};
+
+function ProtectedRoute({ children, allowedRoles }: GuardProps) {
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role as AppRole)) {
+    return <Navigate to={getDefaultRouteForRole(user.role as AppRole)} replace />;
+  }
+
+  return children;
+}
+
+function PublicOnlyRoute({ children }: { children: ReactElement }) {
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultRouteForRole(user.role as AppRole)} replace />;
+  }
+
+  return children;
+}
+
+function DashboardRoute() {
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  switch (user.role) {
+    case 'ADMIN':
+      return <AdminDashboard />;
+    case 'COORDINATOR':
+      return <CoordinatorDashboard />;
+    case 'PRESIDENT':
+    case 'VP':
+      return <PresidentDashboard />;
+    case 'MEMBER':
+    case 'GUEST':
+    default:
+      return <MemberDashboard />;
+  }
+}
 
 function App() {
   const dispatch = useDispatch();
@@ -145,29 +197,162 @@ function App() {
           <main className="flex-grow">
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<MemberDashboard />} />
-              <Route path="/my-tokens" element={<MyTokens />} />
+              <Route
+                path="/login"
+                element={
+                  <PublicOnlyRoute>
+                    <Login />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicOnlyRoute>
+                    <Register />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route path="/dashboard" element={<DashboardRoute />} />
+              <Route
+                path="/my-tokens"
+                element={
+                  <ProtectedRoute>
+                    <MyTokens />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/events/:id" element={<EventDetails />} />
-              <Route path="/create-club" element={<CreateClub />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/coordinators" element={<AdminCoordinators />} />
-              <Route path="/manage-club" element={<PresidentDashboard />} />
-              <Route path="/coordinator" element={<CoordinatorDashboard />} />
-              <Route path="/finances" element={<SponsorCRM />} />
-              <Route path="/studio" element={<AIStudio />} />
-              <Route path="/attendance" element={<AttendanceTracker />} />
-              <Route path="/ledger" element={<LedgerPage />} />
-              <Route path="/gallery" element={<PhotoGallery />} />
-              <Route path="/taskboard" element={<TaskBoard />} />
-              <Route path="/create-event" element={<CreateEvent />} />
+              <Route
+                path="/create-club"
+                element={
+                  <ProtectedRoute allowedRoles={['MEMBER', 'PRESIDENT', 'VP']}>
+                    <CreateClub />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/coordinators"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <AdminCoordinators />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manage-club"
+                element={
+                  <ProtectedRoute allowedRoles={['PRESIDENT', 'VP']}>
+                    <PresidentDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/coordinator"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINATOR']}>
+                    <CoordinatorDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finances"
+                element={
+                  <ProtectedRoute allowedRoles={['PRESIDENT', 'VP', 'COORDINATOR', 'ADMIN']}>
+                    <SponsorCRM />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/studio"
+                element={
+                  <ProtectedRoute>
+                    <AIStudio />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/attendance"
+                element={
+                  <ProtectedRoute allowedRoles={['PRESIDENT', 'VP', 'COORDINATOR']}>
+                    <AttendanceTracker />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ledger"
+                element={
+                  <ProtectedRoute allowedRoles={['PRESIDENT', 'VP', 'COORDINATOR', 'ADMIN']}>
+                    <LedgerPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gallery"
+                element={
+                  <ProtectedRoute>
+                    <PhotoGallery />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/taskboard"
+                element={
+                  <ProtectedRoute>
+                    <TaskBoard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-event"
+                element={
+                  <ProtectedRoute allowedRoles={['PRESIDENT', 'VP']}>
+                    <CreateEvent />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/publish-events" element={<PublishEvents />} />
               <Route path="/set-password" element={<SetPassword />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/governance" element={<Governance />} />
-              <Route path="/treasury" element={<TreasuryExplorer />} />
-              <Route path="/analytics" element={<AnalyticsDashboard />} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/governance"
+                element={
+                  <ProtectedRoute>
+                    <Governance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/treasury"
+                element={
+                  <ProtectedRoute>
+                    <TreasuryExplorer />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <AnalyticsDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/verify/:assetId" element={<PublicVerifyAsset />} />
               <Route path="/verify/token/:assetId" element={<PublicVerifyToken />} />
             </Routes>

@@ -9,6 +9,8 @@ interface EventOption {
   title: string;
   date: string;
   venue: string;
+  description?: string;
+  category?: string;
 }
 
 interface PosterResponse {
@@ -42,6 +44,28 @@ interface ChatMessage {
   };
 }
 
+interface PosterFormState {
+  posterTitle: string;
+  subtitle: string;
+  registrationBanner: string;
+  aboutText: string;
+  prizePool: string;
+  dayPrizePool: string;
+  registrationFee: string;
+  teamSize: string;
+  eligibility: string;
+  dateLabel: string;
+  timeLabel: string;
+  venueLabel: string;
+  website: string;
+  coordinatorName: string;
+  coordinatorPhone: string;
+  studentCoordinator: string;
+  studentPhone: string;
+  sponsors: string;
+  benefits: string;
+}
+
 export default function AIStudio() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -54,8 +78,34 @@ export default function AIStudio() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [mood, setMood] = useState('high-energy, cinematic');
   const [tagline, setTagline] = useState('');
+  const [accentColor, setAccentColor] = useState('#a855f7');
+  const [posterForm, setPosterForm] = useState<PosterFormState>({
+    posterTitle: '',
+    subtitle: '',
+    registrationBanner: 'REGISTRATIONS OPEN NOW',
+    aboutText:
+      'Bring your best ideas, sharpen your skills, and compete in a high-energy campus showdown built for builders.',
+    prizePool: '50,000',
+    dayPrizePool: '10,000+ in prizes',
+    registrationFee: '149',
+    teamSize: '1 to 4 Students',
+    eligibility: 'Open to all branches and all years',
+    dateLabel: '',
+    timeLabel: '',
+    venueLabel: '',
+    website: 'Register on CampusClubs',
+    coordinatorName: '',
+    coordinatorPhone: '',
+    studentCoordinator: '',
+    studentPhone: '',
+    sponsors: 'RadhyaTech\nKNS Burgers & More\nCampus Partner',
+    benefits:
+      'Exciting prize opportunities\nInternship and career exposure\nCertificates to boost your profile\nCampus networking and goodies',
+  });
   const [poster, setPoster] = useState<PosterResponse | null>(null);
   const [generatingPoster, setGeneratingPoster] = useState(false);
+  const [suggestingPosterCopy, setSuggestingPosterCopy] = useState(false);
+  const posterCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // -- Chat State --
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -101,6 +151,112 @@ export default function AIStudio() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const selectedEvent = events.find((event) => event.id === selectedEventId);
+    if (!selectedEvent) {
+      return;
+    }
+
+    setPosterForm((current) => ({
+      ...current,
+      posterTitle: current.posterTitle || selectedEvent.title,
+      subtitle:
+        current.subtitle ||
+        selectedEvent.category ||
+        'Code together. Build together. Win together.',
+      aboutText: current.aboutText || selectedEvent.description || current.aboutText,
+      dateLabel:
+        current.dateLabel ||
+        new Date(selectedEvent.date).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }),
+      timeLabel:
+        current.timeLabel ||
+        new Date(selectedEvent.date).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      venueLabel: current.venueLabel || selectedEvent.venue,
+    }));
+  }, [events, selectedEventId]);
+
+  useEffect(() => {
+    const canvas = posterCanvasRef.current;
+    const selectedEvent = events.find((event) => event.id === selectedEventId);
+    if (!canvas || !poster || !selectedEvent) {
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      canvas.width = 1080;
+      canvas.height = 1350;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const topOverlay = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      topOverlay.addColorStop(0, 'rgba(7, 12, 28, 0.1)');
+      topOverlay.addColorStop(0.45, 'rgba(11, 18, 38, 0.42)');
+      topOverlay.addColorStop(1, 'rgba(6, 13, 32, 0.96)');
+      ctx.fillStyle = topOverlay;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawTopBranding(ctx, accentColor);
+      drawSponsorStrip(ctx, accentColor, posterForm.sponsors);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.shadowColor = 'rgba(255,255,255,0.85)';
+      ctx.shadowBlur = 18;
+      ctx.font = '900 96px Arial';
+      const titleLines = wrapCenteredText(
+        ctx,
+        (posterForm.posterTitle || selectedEvent.title).toUpperCase(),
+        canvas.width / 2,
+        290,
+        840,
+        100,
+      );
+      ctx.shadowBlur = 0;
+      const titleBottom = titleLines[titleLines.length - 1]?.y || 290;
+
+      ctx.fillStyle = '#dbeafe';
+      ctx.font = '700 42px Arial';
+      ctx.textAlign = 'center';
+      wrapText(
+        ctx,
+        posterForm.subtitle || tagline || 'Code together. Win together.',
+        540,
+        titleBottom + 72,
+        760,
+        52,
+        'center',
+      );
+      ctx.textAlign = 'left';
+
+      drawBanner(ctx, posterForm.registrationBanner || 'REGISTRATIONS OPEN NOW');
+      drawDescriptionCard(ctx, accentColor, posterForm.aboutText);
+      drawStatSidebar(ctx, accentColor, posterForm);
+      drawBenefits(ctx, accentColor, posterForm.benefits, posterForm.eligibility);
+      drawPrizeBadge(ctx, accentColor, posterForm);
+      drawContactStrip(ctx, accentColor, posterForm);
+      drawCtaCard(ctx, accentColor, posterForm);
+
+      ctx.fillStyle = '#bfdbfe';
+      ctx.font = '700 22px Arial';
+      ctx.fillText(`Mood: ${mood}`, 72, 1248);
+    };
+    image.src = poster.imageUrl;
+  }, [accentColor, events, mood, poster, posterForm, selectedEventId, tagline]);
 
   // -- AI Chat Logic --
   const handleChatSubmit = async (e: React.FormEvent) => {
@@ -177,6 +333,54 @@ export default function AIStudio() {
       alert(error.message || 'Failed to generate poster');
     } finally {
       setGeneratingPoster(false);
+    }
+  };
+
+  const handleSuggestPosterCopy = async () => {
+    if (!selectedEventId) {
+      alert('Choose an event first.');
+      return;
+    }
+
+    setSuggestingPosterCopy(true);
+    try {
+      const data = await apiFetch('/ai/poster-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: selectedEventId,
+          mood,
+          currentFields: posterForm,
+        }),
+      });
+
+      setPosterForm((current) => ({
+        ...current,
+        ...data,
+      }));
+
+      if (!tagline && data?.subtitle) {
+        setTagline(data.subtitle);
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to generate poster copy');
+    } finally {
+      setSuggestingPosterCopy(false);
+    }
+  };
+
+  const downloadPoster = () => {
+    const canvas = posterCanvasRef.current;
+    if (!canvas) return;
+
+    try {
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `poster_${selectedEventId || 'event'}.png`;
+      link.click();
+    } catch (error) {
+      alert('Could not export the poster. Try generating again.');
     }
   };
 
@@ -372,6 +576,53 @@ export default function AIStudio() {
                   disabled={!canGenerate}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Poster Title</label>
+                  <input
+                    value={posterForm.posterTitle}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        posterTitle: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="Event name"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Subtitle</label>
+                  <input
+                    value={posterForm.subtitle}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        subtitle: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="Hook line under title"
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Registration Banner</label>
+                <input
+                  value={posterForm.registrationBanner}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      registrationBanner: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                  placeholder="Ex: Registration extended till 6 March 5:00 PM"
+                  disabled={!canGenerate}
+                />
+              </div>
               <div>
                 <label className="block text-slate-400 mb-1">Tagline Hint</label>
                 <textarea
@@ -383,19 +634,315 @@ export default function AIStudio() {
                   disabled={!canGenerate}
                 />
               </div>
+              <div>
+                <label className="block text-slate-400 mb-1">About / Description</label>
+                <textarea
+                  rows={4}
+                  value={posterForm.aboutText}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      aboutText: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500 resize-none"
+                  placeholder="Main body copy for the poster"
+                  disabled={!canGenerate}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Prize Pool</label>
+                  <input
+                    value={posterForm.prizePool}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        prizePool: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="50,000"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Day Prize / Highlight</label>
+                  <input
+                    value={posterForm.dayPrizePool}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        dayPrizePool: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="10K+ in prizes"
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Registration Fee</label>
+                  <input
+                    value={posterForm.registrationFee}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        registrationFee: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="149"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Team Size</label>
+                  <input
+                    value={posterForm.teamSize}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        teamSize: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="1 to 4 Students"
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Eligibility</label>
+                <input
+                  value={posterForm.eligibility}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      eligibility: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                  placeholder="Open to all branches & all years"
+                  disabled={!canGenerate}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Date Label</label>
+                  <input
+                    value={posterForm.dateLabel}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        dateLabel: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="07 March 2026"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Time Label</label>
+                  <input
+                    value={posterForm.timeLabel}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        timeLabel: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="2:20 to 4:30"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Venue Label</label>
+                  <input
+                    value={posterForm.venueLabel}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        venueLabel: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="E124"
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Benefits / Why Join</label>
+                <textarea
+                  rows={4}
+                  value={posterForm.benefits}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      benefits: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500 resize-none"
+                  placeholder="One point per line"
+                  disabled={!canGenerate}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Sponsors</label>
+                <textarea
+                  rows={3}
+                  value={posterForm.sponsors}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      sponsors: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500 resize-none"
+                  placeholder="One sponsor per line"
+                  disabled={!canGenerate}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Website / CTA URL</label>
+                <input
+                  value={posterForm.website}
+                  onChange={(e) =>
+                    setPosterForm((current) => ({
+                      ...current,
+                      website: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                  placeholder="Registration link or CTA"
+                  disabled={!canGenerate}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Faculty Coordinator</label>
+                  <input
+                    value={posterForm.coordinatorName}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        coordinatorName: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="Faculty coordinator"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Faculty Phone</label>
+                  <input
+                    value={posterForm.coordinatorPhone}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        coordinatorPhone: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="+91..."
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Student Coordinator</label>
+                  <input
+                    value={posterForm.studentCoordinator}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        studentCoordinator: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="Student coordinator"
+                    disabled={!canGenerate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Student Phone</label>
+                  <input
+                    value={posterForm.studentPhone}
+                    onChange={(e) =>
+                      setPosterForm((current) => ({
+                        ...current,
+                        studentPhone: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-purple-500"
+                    placeholder="+91..."
+                    disabled={!canGenerate}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Accent Color</label>
+                <input
+                  type="color"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="h-11 w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-800 p-1"
+                  disabled={!canGenerate}
+                />
+              </div>
               <button
-                disabled={generatingPoster || !canGenerate}
+                type="button"
+                onClick={handleSuggestPosterCopy}
+                disabled={suggestingPosterCopy || !canGenerate}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white font-medium rounded-lg transition"
+              >
+                {suggestingPosterCopy ? 'AI Drafting Copy...' : 'AI Fill Details'}
+              </button>
+              <button
+                type="submit"
+                disabled={generatingPoster || suggestingPosterCopy || !canGenerate}
                 className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white font-medium rounded-lg transition"
               >
-                {generatingPoster ? 'Generating Asset...' : 'Generate Art'}
+                {generatingPoster ? 'Generating Poster Base...' : 'Generate Poster'}
               </button>
             </form>
           </div>
 
           <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 min-h-[500px] flex items-center justify-center">
             {poster ? (
-              <div className="flex flex-col items-center gap-4">
-                <img src={poster.imageUrl} alt="Poster" className="max-h-[600px] object-contain rounded-xl shadow-2xl" />
+              <div className="flex w-full flex-col items-center gap-4">
+                <canvas
+                  ref={posterCanvasRef}
+                  className="max-h-[700px] w-full max-w-[560px] rounded-xl border border-slate-700 bg-slate-950 object-contain shadow-2xl"
+                />
+                <div className="flex w-full max-w-[560px] justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={downloadPoster}
+                    className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-400"
+                  >
+                    Download PNG
+                  </button>
+                  <a
+                    href={poster.imageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-bold text-slate-200 transition hover:bg-slate-800"
+                  >
+                    Open Raw Background
+                  </a>
+                </div>
+                <div className="bg-slate-800 p-4 rounded-xl text-xs text-slate-300 w-full">
+                  <span className="text-emerald-400 font-bold block mb-1">Canvas Composer</span>
+                  Structured poster fields are composed here into a hackathon-style poster for PNG export.
+                </div>
                 <div className="bg-slate-800 p-4 rounded-xl text-xs text-slate-300 w-full">
                   <span className="text-purple-400 font-bold block mb-1">Exact Prompt Given to SDXL:</span>
                   {poster.prompt}
@@ -412,4 +959,308 @@ export default function AIStudio() {
       )}
     </div>
   );
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  startY: number,
+  maxWidth: number,
+  lineHeight: number,
+  align: CanvasTextAlign = 'left',
+) {
+  const words = text.split(' ');
+  const lines: Array<{ text: string; y: number }> = [];
+  let currentLine = '';
+  let y = startY;
+  const previousAlign = ctx.textAlign;
+  ctx.textAlign = align;
+
+  words.forEach((word) => {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      ctx.fillText(currentLine, x, y);
+      lines.push({ text: currentLine, y });
+      currentLine = word;
+      y += lineHeight;
+      return;
+    }
+    currentLine = testLine;
+  });
+
+  if (currentLine) {
+    ctx.fillText(currentLine, x, y);
+    lines.push({ text: currentLine, y });
+  }
+
+  ctx.textAlign = previousAlign;
+  return lines;
+}
+
+function wrapCenteredText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  startY: number,
+  maxWidth: number,
+  lineHeight: number,
+) {
+  return wrapText(ctx, text, x, startY, maxWidth, lineHeight, 'center');
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawTopBranding(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+) {
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(ctx, 40, 34, 300, 88, 18);
+  ctx.fill();
+  roundRect(ctx, 760, 34, 280, 88, 18);
+  ctx.fill();
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 42px Arial';
+  ctx.fillText('MIT', 62, 92);
+  ctx.font = '700 30px Arial';
+  ctx.fillText('Academy of Engineering', 138, 90);
+
+  ctx.fillStyle = accentColor;
+  ctx.font = '800 24px Arial';
+  ctx.fillText('CODECHEF / HACKATHON', 786, 76);
+  ctx.fillStyle = '#334155';
+  ctx.font = '700 22px Arial';
+  ctx.fillText('Campus Chapter Poster Builder', 786, 104);
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 22px Arial';
+  ctx.fillText('CAMPUSCLUBS AI POSTER', 392, 90);
+}
+
+function drawSponsorStrip(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  sponsorsValue: string,
+) {
+  const sponsors = sponsorsValue
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 18px Arial';
+  ctx.fillText('SPONSORED BY', 430, 150);
+
+  sponsors.forEach((sponsor, index) => {
+    const x = 286 + index * 176;
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    roundRect(ctx, x, 166, 160, 54, 18);
+    ctx.fill();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '700 18px Arial';
+    wrapText(ctx, sponsor, x + 80, 199, 132, 18, 'center');
+  });
+}
+
+function drawBanner(ctx: CanvasRenderingContext2D, bannerText: string) {
+  ctx.fillStyle = 'rgba(255, 91, 91, 0.92)';
+  roundRect(ctx, 120, 448, 840, 54, 18);
+  ctx.fill();
+  ctx.fillStyle = '#fff7ed';
+  ctx.font = '800 30px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(bannerText.toUpperCase(), 540, 484);
+  ctx.textAlign = 'left';
+}
+
+function drawDescriptionCard(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  aboutText: string,
+) {
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+  roundRect(ctx, 72, 534, 480, 178, 28);
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '700 18px Arial';
+  wrapText(ctx, aboutText, 104, 586, 420, 28);
+}
+
+function drawStatSidebar(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  form: PosterFormState,
+) {
+  const x = 612;
+  const y = 534;
+  const w = 396;
+  const h = 300;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+  roundRect(ctx, x, y, w, h, 30);
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  const stats = [
+    ['DATE', form.dateLabel || 'To be announced'],
+    ['TIME', form.timeLabel || 'To be announced'],
+    ['VENUE', form.venueLabel || 'Campus venue'],
+    ['ENTRY', `Rs ${form.registrationFee || '0'}`],
+    ['TEAM', form.teamSize || 'Individual'],
+  ];
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '800 24px Arial';
+  ctx.fillText(form.dayPrizePool || '10K+ in prizes', x + 28, y + 46);
+
+  stats.forEach(([label, value], index) => {
+    const rowY = y + 92 + index * 38;
+    ctx.fillStyle = '#93c5fd';
+    ctx.font = '700 18px Arial';
+    ctx.fillText(label, x + 28, rowY);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '800 24px Arial';
+    ctx.fillText(value, x + 148, rowY + 2);
+  });
+}
+
+function drawBenefits(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  benefitsValue: string,
+  eligibility: string,
+) {
+  const benefits = benefitsValue
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '800 28px Arial';
+  ctx.fillText('WHY YOU SHOULD JOIN?', 72, 792);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(ctx, 72, 814, 360, 42, 18);
+  ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '700 18px Arial';
+  wrapText(ctx, eligibility, 252, 842, 320, 18, 'center');
+
+  benefits.forEach((benefit, index) => {
+    const y = 882 + index * 64;
+    ctx.fillStyle = 'rgba(10, 22, 52, 0.75)';
+    roundRect(ctx, 72, y, 390, 46, 22);
+    ctx.fill();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 20px Arial';
+    wrapText(ctx, benefit, 268, y + 30, 330, 20, 'center');
+  });
+}
+
+function drawPrizeBadge(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  form: PosterFormState,
+) {
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(ctx, 540, 872, 220, 128, 26);
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = accentColor;
+  ctx.font = '900 28px Arial';
+  ctx.fillText('PRIZE POOL', 574, 914);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 44px Arial';
+  ctx.fillText(`Rs ${form.prizePool || '0'}`, 574, 966);
+  ctx.fillStyle = '#334155';
+  ctx.font = '700 18px Arial';
+  ctx.fillText(form.dayPrizePool || 'Day prizes available', 574, 995);
+}
+
+function drawCtaCard(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  form: PosterFormState,
+) {
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+  roundRect(ctx, 790, 876, 220, 292, 28);
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff7ed';
+  ctx.font = '900 34px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('REGISTER', 900, 926);
+  ctx.fillText('NOW', 900, 964);
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(830, 992, 140, 140);
+  ctx.fillStyle = '#0f172a';
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      if ((row + col) % 2 === 0 || (row * col) % 3 === 0) {
+        ctx.fillRect(842 + col * 16, 1004 + row * 16, 10, 10);
+      }
+    }
+  }
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '700 16px Arial';
+  wrapText(ctx, form.website || 'campusclubs registration link', 900, 1160, 160, 18, 'center');
+  ctx.textAlign = 'left';
+}
+
+function drawContactStrip(
+  ctx: CanvasRenderingContext2D,
+  accentColor: string,
+  form: PosterFormState,
+) {
+  ctx.fillStyle = 'rgba(5, 10, 22, 0.86)';
+  roundRect(ctx, 48, 1264, 984, 58, 22);
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 20px Arial';
+  ctx.fillText(`Faculty: ${form.coordinatorName || 'Faculty coordinator'} ${form.coordinatorPhone ? `• ${form.coordinatorPhone}` : ''}`, 76, 1299);
+  ctx.fillText(`Student: ${form.studentCoordinator || 'Student coordinator'} ${form.studentPhone ? `• ${form.studentPhone}` : ''}`, 520, 1299);
 }

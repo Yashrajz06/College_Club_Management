@@ -15,17 +15,24 @@ const client_1 = require("@prisma/client");
 const nestjs_cls_1 = require("nestjs-cls");
 const algorand_service_1 = require("../finance/algorand.service");
 const insights_service_1 = require("../insights/insights.service");
+const notification_gateway_1 = require("../notification/notification/notification.gateway");
 const prisma_service_1 = require("../prisma/prisma.service");
+const token_service_1 = require("../token/token.service");
+const client_2 = require("@prisma/client");
 let ClubService = class ClubService {
     prisma;
     cls;
     algorand;
     insights;
-    constructor(prisma, cls, algorand, insights) {
+    notifications;
+    tokenService;
+    constructor(prisma, cls, algorand, insights, notifications, tokenService) {
         this.prisma = prisma;
         this.cls = cls;
         this.algorand = algorand;
         this.insights = insights;
+        this.notifications = notifications;
+        this.tokenService = tokenService;
     }
     async createClubRequest(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
@@ -94,6 +101,15 @@ let ClubService = class ClubService {
                 coordinatorId: club.coordinatorId,
             },
         });
+        const admins = await this.prisma.user.findMany({
+            where: { collegeId, role: client_1.Role.ADMIN },
+            select: { id: true },
+        });
+        admins.forEach((admin) => this.notifications.sendNotificationToUser(admin.id, {
+            title: 'New Club Request',
+            message: `${club.name} is awaiting approval.`,
+            type: 'info',
+        }));
         return club;
     }
     async getPendingRequests() {
@@ -149,16 +165,13 @@ let ClubService = class ClubService {
             await this.ensureMembership(tx, clubId, club.vpId, 'Vice President');
             return approvedClub;
         });
-        await this.algorand.triggerLifecycleAction({
-            action: client_1.BlockchainActionType.MINT,
-            contractType: client_1.CollegeContractType.ENTRY_TOKEN,
-            entityId: updated.id,
-            walletAddress: club.president?.walletAddress,
+        await this.tokenService.mintEntryToken({
+            userId: club.presidentId,
+            actionType: client_2.TokenActionType.JOIN,
+            walletAddress: club.president?.walletAddress ?? undefined,
+            clubId: updated.id,
             metadata: {
-                reason: 'club_approval',
-                clubId: updated.id,
-                userId: club.presidentId,
-                targetWalletAddress: club.president?.walletAddress,
+                reason: 'club_approval_founder',
             },
         });
         await this.insights.recordSyncEvent({
@@ -169,6 +182,15 @@ let ClubService = class ClubService {
                 approvedAt: updated.approvedAt,
                 presidentId: club.presidentId,
             },
+        });
+        [club.presidentId, club.vpId, club.coordinatorId].forEach((recipientId) => {
+            if (!recipientId)
+                return;
+            this.notifications.sendNotificationToUser(recipientId, {
+                title: 'Club Approved',
+                message: `${updated.name} is now active.`,
+                type: 'success',
+            });
         });
         return updated;
     }
@@ -196,6 +218,24 @@ let ClubService = class ClubService {
             payload: {
                 remarks,
             },
+        });
+        const clubStakeholders = await this.prisma.club.findFirst({
+            where: { id: club.id },
+            select: {
+                name: true,
+                presidentId: true,
+                vpId: true,
+                coordinatorId: true,
+            },
+        });
+        [clubStakeholders?.presidentId, clubStakeholders?.vpId, clubStakeholders?.coordinatorId].forEach((recipientId) => {
+            if (!recipientId)
+                return;
+            this.notifications.sendNotificationToUser(recipientId, {
+                title: 'Club Request Updated',
+                message: `${clubStakeholders?.name || 'Club request'} was not approved.${remarks ? ` ${remarks}` : ''}`,
+                type: 'warning',
+            });
         });
         return club;
     }
@@ -380,7 +420,7 @@ let ClubService = class ClubService {
         });
         if (!user)
             throw new common_1.NotFoundException('Student not found');
-        return this.prisma.invitation.create({
+        const invitation = await this.prisma.invitation.create({
             data: {
                 collegeId: this.getCurrentCollegeIdOrThrow(),
                 clubId,
@@ -388,12 +428,29 @@ let ClubService = class ClubService {
                 customRole,
             },
         });
+        this.notifications.sendNotificationToUser(user.id, {
+            title: 'Club Invitation',
+            message: `You were invited to join a club${customRole ? ` as ${customRole}` : ''}.`,
+            type: 'info',
+        });
+        return invitation;
     }
     async getInvitationsForUser(userId) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.invitation.findMany({
             where: { collegeId, userId, status: 'PENDING' },
             include: { club: { select: { name: true, category: true } } },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+    async getRequestsForUser(userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        return this.prisma.club.findMany({
+            where: { collegeId, presidentId: userId },
+            include: {
+                vp: { select: { name: true, email: true } },
+                coordinator: { select: { name: true, email: true } },
+            },
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -414,11 +471,29 @@ let ClubService = class ClubService {
                     customRole: invite.customRole,
                 },
             });
+            const member = await this.prisma.user.findFirst({
+                where: { id: invite.userId, collegeId },
+                select: { walletAddress: true },
+            });
+            await this.tokenService.mintEntryToken({
+                userId: invite.userId,
+                actionType: client_2.TokenActionType.JOIN,
+                walletAddress: member?.walletAddress ?? undefined,
+                clubId: invite.clubId,
+            });
         }
-        return this.prisma.invitation.update({
+        const updatedInvite = await this.prisma.invitation.update({
             where: { id: invitationId },
             data: { status },
         });
+        this.notifications.sendNotificationToUser(invite.userId, {
+            title: status === 'ACCEPTED' ? 'Membership Active' : 'Invitation Closed',
+            message: status === 'ACCEPTED'
+                ? 'Your club membership is now active.'
+                : 'You declined the club invitation.',
+            type: status === 'ACCEPTED' ? 'success' : 'warning',
+        });
+        return updatedInvite;
     }
     async getMembers(clubId) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
@@ -426,6 +501,43 @@ let ClubService = class ClubService {
             where: { clubId, collegeId },
             include: { user: { select: { id: true, name: true, email: true, role: true } } },
             orderBy: { joinedAt: 'asc' },
+        });
+    }
+    async updateMemberRole(clubId, memberId, requesterId, customRole) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const club = await this.prisma.club.findFirst({
+            where: { id: clubId, collegeId },
+            select: { presidentId: true, vpId: true },
+        });
+        if (!club) {
+            throw new common_1.NotFoundException('Club not found');
+        }
+        const requester = await this.prisma.user.findFirst({
+            where: { id: requesterId, collegeId },
+            select: { role: true },
+        });
+        const isOwner = club.presidentId === requesterId || club.vpId === requesterId;
+        const isAdmin = requester?.role === client_1.Role.ADMIN;
+        if (!isOwner && !isAdmin) {
+            throw new common_1.ForbiddenException('Not authorized to update club roles');
+        }
+        const membership = await this.prisma.clubMember.findFirst({
+            where: { id: memberId, clubId, collegeId },
+            select: { id: true },
+        });
+        if (!membership) {
+            throw new common_1.NotFoundException('Club member not found');
+        }
+        return this.prisma.clubMember.update({
+            where: { id: membership.id },
+            data: {
+                customRole: customRole?.trim() || null,
+            },
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, role: true },
+                },
+            },
         });
     }
     async ensureMembership(tx, clubId, userId, customRole) {
@@ -462,6 +574,8 @@ exports.ClubService = ClubService = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         nestjs_cls_1.ClsService,
         algorand_service_1.AlgorandService,
-        insights_service_1.InsightsService])
+        insights_service_1.InsightsService,
+        notification_gateway_1.NotificationGateway,
+        token_service_1.TokenService])
 ], ClubService);
 //# sourceMappingURL=club.service.js.map

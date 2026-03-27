@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { apiFetch } from './lib/api';
 import { setCredentials } from './store/authSlice';
+import { getDefaultRouteForRole } from './lib/routing';
+
+interface CollegeOption {
+  id: string;
+  name: string;
+  domain: string;
+}
 
 export default function Register() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingColleges, setLoadingColleges] = useState(true);
+  const [colleges, setColleges] = useState<CollegeOption[]>([]);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -17,7 +26,27 @@ export default function Register() {
     department: '',
     year: '',
     secretCode: '',
+    collegeId: localStorage.getItem('collegeId') || '',
   });
+
+  useEffect(() => {
+    const loadColleges = async () => {
+      setLoadingColleges(true);
+      try {
+        const data = await apiFetch('/colleges');
+        setColleges(data ?? []);
+        if (!form.collegeId && data?.[0]?.id) {
+          setForm((current) => ({ ...current, collegeId: data[0].id }));
+        }
+      } catch (error) {
+        console.error('Failed to load colleges', error);
+      } finally {
+        setLoadingColleges(false);
+      }
+    };
+
+    loadColleges();
+  }, []);
 
   const set =
     (field: string) =>
@@ -28,6 +57,10 @@ export default function Register() {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
       alert('Passwords do not match.');
+      return;
+    }
+    if (!form.collegeId) {
+      alert('Please select your college before continuing.');
       return;
     }
 
@@ -43,11 +76,11 @@ export default function Register() {
           department: form.department || undefined,
           year: form.year || undefined,
           secretCode: form.secretCode || undefined,
-          collegeId: localStorage.getItem('collegeId') || undefined,
+          collegeId: form.collegeId,
         }),
       });
       dispatch(setCredentials({ user: data.user, token: data.access_token }));
-      navigate('/dashboard');
+      navigate(getDefaultRouteForRole(data.user?.role), { replace: true });
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Registration failed');
     } finally {
@@ -94,6 +127,27 @@ export default function Register() {
                   placeholder="e.g. 2022MIT0042"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                College
+              </label>
+              <select
+                required
+                value={form.collegeId}
+                onChange={set('collegeId')}
+                disabled={loadingColleges || colleges.length === 0}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+              >
+                <option value="">
+                  {loadingColleges ? 'Loading colleges...' : 'Select College'}
+                </option>
+                {colleges.map((college) => (
+                  <option key={college.id} value={college.id}>
+                    {college.name} ({college.domain})
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">
@@ -189,9 +243,9 @@ export default function Register() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingColleges || colleges.length === 0}
               className={`w-full py-4 font-bold text-white rounded-xl shadow-lg transition-all ${
-                loading
+                loading || loadingColleges || colleges.length === 0
                   ? 'bg-blue-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-xl hover:-translate-y-1'
               }`}
@@ -199,6 +253,11 @@ export default function Register() {
               {loading ? 'Creating Account...' : 'Create My Account'}
             </button>
           </form>
+          <p className="mt-4 text-xs text-slate-500 text-center leading-relaxed">
+            Students can sign up directly. Coordinators should usually come in
+            through an invite link and set their password from the emailed
+            activation page.
+          </p>
           <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{' '}
             <Link

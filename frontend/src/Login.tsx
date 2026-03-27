@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from './lib/api';
 import { setCredentials } from './store/authSlice';
+import { getDefaultRouteForRole } from './lib/routing';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
       dispatch(setCredentials({ user: data.user, token: data.access_token }));
-      navigate('/');
+      navigate(getDefaultRouteForRole(data.user?.role), { replace: true });
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Login failed');
     } finally {
@@ -69,9 +70,14 @@ export default function Login() {
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
-        <div className="mt-6 text-center text-sm text-slate-500">
-          <p>Test accounts: admin@college.edu | member@college.edu</p>
-          <p>Password: password123</p>
+        <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-slate-600">
+          <p className="font-semibold text-slate-900">Hackathon demo accounts</p>
+          <p className="mt-1">Admin: `admin@college.edu`</p>
+          <p>Coordinator: use your invite link and set password flow</p>
+          <p>Member: `member@college.edu`</p>
+          <p className="mt-1 text-xs uppercase tracking-wider text-indigo-700">
+            Password: `password123`
+          </p>
         </div>
       </div>
     </div>

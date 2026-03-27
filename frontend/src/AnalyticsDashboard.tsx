@@ -5,8 +5,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { 
-  TrendingUp, Users, ShieldCheck, Coins, Activity, 
-  ChevronRight, Award, Trophy, Timer
+  TrendingUp, Users, ShieldCheck, Coins, Activity,
+  Trophy, Timer
 } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];

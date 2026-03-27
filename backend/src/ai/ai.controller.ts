@@ -35,6 +35,19 @@ export class AiController {
     return this.aiService.generateEventPoster(eventId, { mood, tagline });
   }
 
+  @Post('poster-copy')
+  @Roles(Role.PRESIDENT, Role.VP)
+  async generatePosterCopy(
+    @Body('eventId') eventId: string,
+    @Body('mood') mood?: string,
+    @Body('currentFields') currentFields?: Record<string, string>,
+  ) {
+    return this.aiService.generatePosterCopySuggestions(eventId, {
+      mood,
+      currentFields,
+    });
+  }
+
   @Get('assistant-context')
   @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
   async getAssistantContext() {

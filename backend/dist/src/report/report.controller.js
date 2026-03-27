@@ -18,6 +18,7 @@ const report_service_1 = require("./report.service");
 const passport_1 = require("@nestjs/passport");
 const roles_guard_1 = require("../auth/roles.guard");
 const roles_decorator_1 = require("../auth/roles.decorator");
+const token_gate_decorator_1 = require("../auth/decorators/token-gate.decorator");
 const client_1 = require("@prisma/client");
 let ReportController = class ReportController {
     reportService;
@@ -47,6 +48,7 @@ __decorate([
 exports.ReportController = ReportController = __decorate([
     (0, common_1.Controller)('report'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
+    (0, token_gate_decorator_1.TokenGate)(client_1.BlockchainActionType.MINT),
     __metadata("design:paramtypes", [report_service_1.ReportService])
 ], ReportController);
 //# sourceMappingURL=report.controller.js.map

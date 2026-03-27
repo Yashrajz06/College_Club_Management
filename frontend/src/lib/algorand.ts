@@ -1,7 +1,6 @@
 import algosdk from 'algosdk';
+import { API_BASE_URL } from './api';
 import { peraWallet } from './pera';
-
-const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 function base64ToBytes(value: string) {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
@@ -35,7 +34,7 @@ export async function prepareLedgerWalletTransaction(
   token: string,
   payload: LedgerTransactionPayload,
 ) {
-  const response = await fetch(`${backendUrl}/finance/algorand/prepare`, {
+  const response = await fetch(`${API_BASE_URL}/finance/algorand/prepare`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -75,7 +74,7 @@ export async function submitLedgerWalletTransaction(
     signedTransactions: string[];
   },
 ) {
-  const response = await fetch(`${backendUrl}/finance/algorand/submit`, {
+  const response = await fetch(`${API_BASE_URL}/finance/algorand/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
