@@ -14,21 +14,28 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SponsorController = void 0;
 const common_1 = require("@nestjs/common");
-const sponsor_service_1 = require("./sponsor.service");
-const passport_1 = require("@nestjs/passport");
-const roles_guard_1 = require("../auth/roles.guard");
-const roles_decorator_1 = require("../auth/roles.decorator");
 const client_1 = require("@prisma/client");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
+const sponsor_service_1 = require("./sponsor.service");
 let SponsorController = class SponsorController {
     sponsorService;
     constructor(sponsorService) {
         this.sponsorService = sponsorService;
     }
-    async createSponsor(body) {
-        return this.sponsorService.addSponsor(body);
+    async createSponsor(req, body) {
+        return this.sponsorService.addSponsor({
+            ...body,
+            requesterId: req.user.userId,
+        });
     }
-    async updateSponsorStatus(id, status) {
-        return this.sponsorService.updateStatus(id, status);
+    async updateSponsorStatus(id, req, status) {
+        return this.sponsorService.updateStatus(id, status, req.user.userId);
+    }
+    async createOutreachDraft(id, req, eventId) {
+        return this.sponsorService.generateOutreachDraft(id, eventId, req.user.userId);
+    }
+    async deleteSponsor(id, req) {
+        return this.sponsorService.deleteSponsor(id, req.user.userId);
     }
     async getClubSponsors(clubId) {
         return this.sponsorService.getSponsorsForClub(clubId);
@@ -38,20 +45,41 @@ exports.SponsorController = SponsorController;
 __decorate([
     (0, common_1.Post)(),
     (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SponsorController.prototype, "createSponsor", null);
 __decorate([
     (0, common_1.Patch)(':id/status'),
     (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)('status')),
+    __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Body)('status')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], SponsorController.prototype, "updateSponsorStatus", null);
+__decorate([
+    (0, common_1.Post)(':id/outreach-draft'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Body)('eventId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], SponsorController.prototype, "createOutreachDraft", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], SponsorController.prototype, "deleteSponsor", null);
 __decorate([
     (0, common_1.Get)('club/:clubId'),
     (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP, client_1.Role.COORDINATOR),
@@ -62,7 +90,6 @@ __decorate([
 ], SponsorController.prototype, "getClubSponsors", null);
 exports.SponsorController = SponsorController = __decorate([
     (0, common_1.Controller)('sponsor'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
     __metadata("design:paramtypes", [sponsor_service_1.SponsorService])
 ], SponsorController);
 //# sourceMappingURL=sponsor.controller.js.map

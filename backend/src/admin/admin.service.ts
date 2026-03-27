@@ -4,12 +4,14 @@ import { MailService } from '../mail/mail.service';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
 import { InviteCoordinatorDto } from '../auth/dto/invite-coordinator.dto';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly cls: ClsService,
   ) {}
 
   async inviteCoordinator(dto: InviteCoordinatorDto) {
@@ -24,6 +26,7 @@ export class AdminService {
 
     await this.prisma.user.create({
       data: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
         name: dto.name,
         email: dto.email,
         passwordHash: '',
@@ -87,5 +90,12 @@ export class AdminService {
     });
     return coordinators;
   }
-}
 
+  private getCurrentCollegeIdOrThrow() {
+    const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+    if (!collegeId) {
+      throw new BadRequestException('College context is required');
+    }
+    return collegeId;
+  }
+}

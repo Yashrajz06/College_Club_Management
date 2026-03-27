@@ -23,9 +23,17 @@ import CreateEvent from './CreateEvent';
 import PublishEvents from './PublishEvents';
 import SetPassword from './SetPassword';
 import AdminCoordinators from './AdminCoordinators';
+import { useEffect } from 'react';
+import { reconnectPeraWallet } from './lib/pera';
+import { CollegeSwitcher } from './CollegeSwitcher';
+import Profile from './Profile';
 
 function App() {
   const dispatch = useDispatch();
+  
+  useEffect(() => {
+    reconnectPeraWallet();
+  }, []);
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
 
   const handleLogout = () => {
@@ -38,9 +46,12 @@ function App() {
         <ToastContainer />
         <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <Link to="/" className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-              CampusClubs
-            </Link>
+            <div className="flex items-center gap-8">
+              <Link to="/" className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                CampusClubs
+              </Link>
+              <CollegeSwitcher />
+            </div>
             <nav className="flex items-center space-x-3">
               {isAuthenticated ? (
                 <div className="flex items-center space-x-3 flex-wrap">
@@ -88,9 +99,10 @@ function App() {
                   {user?.role === 'COORDINATOR' && (
                     <Link to="/coordinator" className="text-sm font-medium text-blue-600 hover:text-blue-800">Review Events</Link>
                   )}
-                  <span className="text-sm font-medium text-slate-600 hidden md:inline">
-                    {user?.name} <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full ml-1">{user?.role}</span>
-                  </span>
+                  <Link to="/profile" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
+                    {user?.name}
+                  </Link>
+                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{user?.role}</span>
                   <button onClick={handleLogout} className="text-sm font-medium text-rose-500 hover:text-rose-700 transition-colors">
                     Logout
                   </button>
@@ -128,6 +140,7 @@ function App() {
             <Route path="/create-event" element={<CreateEvent />} />
             <Route path="/publish-events" element={<PublishEvents />} />
             <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
 

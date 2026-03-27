@@ -1,10 +1,29 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  BlockchainActionType,
+  ClubStatus,
+  CollegeContractType,
+  Prisma,
+  Role,
+} from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
+import { AlgorandService } from '../finance/algorand.service';
+import { InsightsService } from '../insights/insights.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ClubStatus, Role } from '@prisma/client';
 
 @Injectable()
 export class ClubService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cls: ClsService,
+    private readonly algorand: AlgorandService,
+    private readonly insights: InsightsService,
+  ) {}
 
   async createClubRequest(data: {
     name: string;
@@ -12,136 +31,331 @@ export class ClubService {
     category: string;
     presidentId: string;
     vpEmailOrId: string;
-    coordinatorEmailOrId?: string;
+    coordinatorEmailOrId: string;
   }) {
-    // Check if club name exists
-    const existing = await this.prisma.club.findUnique({ where: { name: data.name } });
-    if (existing) throw new Error("Club name already exists");
-
-    const vpUser = await this.prisma.user.findFirst({
-      where: { OR: [{ email: data.vpEmailOrId }, { studentId: data.vpEmailOrId }] },
+    const collegeId = this.getCurrentCollegeIdOrThrow();
+    const existing = await this.prisma.club.findFirst({
+      where: { name: data.name },
+      select: { id: true },
     });
-    if (!vpUser) throw new NotFoundException('Vice President not found');
-
-    let coordinatorId: string | undefined;
-    if (!data.coordinatorEmailOrId) {
-      throw new BadRequestException('coordinatorEmailOrId is required');
+    if (existing) {
+      throw new BadRequestException('Club name already exists');
     }
 
-    const coordinatorUser = await this.prisma.user.findFirst({
-      where: { OR: [{ email: data.coordinatorEmailOrId }, { studentId: data.coordinatorEmailOrId }] },
-    });
-    if (!coordinatorUser) throw new NotFoundException('Faculty Coordinator not found');
-    coordinatorId = coordinatorUser.id;
+    const [president, vpUser, coordinatorUser] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: data.presidentId },
+      }),
+      this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.vpEmailOrId },
+            { studentId: data.vpEmailOrId },
+          ],
+        },
+      }),
+      this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.coordinatorEmailOrId },
+            { studentId: data.coordinatorEmailOrId },
+          ],
+        },
+      }),
+    ]);
 
-    return this.prisma.club.create({
+    if (!president) throw new NotFoundException('President not found');
+    if (!vpUser) throw new NotFoundException('Vice President not found');
+    if (!coordinatorUser) {
+      throw new NotFoundException('Faculty Coordinator not found');
+    }
+
+    const club = await this.prisma.club.create({
       data: {
+        collegeId,
         name: data.name,
         description: data.description,
         category: data.category,
         status: ClubStatus.PENDING,
         presidentId: data.presidentId,
         vpId: vpUser.id,
-        coordinatorId,
-      }
+        coordinatorId: coordinatorUser.id,
+      },
+      include: {
+        president: { select: { id: true, name: true, email: true } },
+        vp: { select: { id: true, name: true, email: true } },
+        coordinator: { select: { id: true, name: true, email: true } },
+      },
     });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'club',
+      action: 'created',
+      entityId: club.id,
+      payload: {
+        status: club.status,
+        presidentId: club.presidentId,
+        vpId: club.vpId,
+        coordinatorId: club.coordinatorId,
+      },
+    });
+
+    return club;
   }
 
   async getPendingRequests() {
     return this.prisma.club.findMany({
       where: { status: ClubStatus.PENDING },
-      include: { president: { select: { name: true, email: true } }, coordinator: { select: { name: true } } }
+      include: {
+        president: { select: { name: true, email: true } },
+        coordinator: { select: { name: true, email: true } },
+        vp: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async approveClub(clubId: string) {
-    const club = await this.prisma.club.findUnique({ where: { id: clubId } });
-    if (!club) throw new NotFoundException('Club not found');
-
-    const updated = await this.prisma.club.update({
+  async approveClub(clubId: string, remarks?: string) {
+    const club = await this.prisma.club.findFirst({
       where: { id: clubId },
-      data: { status: ClubStatus.ACTIVE }
+      include: {
+        president: {
+          select: { id: true, walletAddress: true },
+        },
+      },
     });
-
+    if (!club) throw new NotFoundException('Club not found');
     if (!club.presidentId || !club.vpId || !club.coordinatorId) {
-      throw new BadRequestException('Club missing compulsory positions (PRESIDENT/VP/COORDINATOR)');
+      throw new BadRequestException(
+        'Club missing compulsory positions (PRESIDENT/VP/COORDINATOR)',
+      );
     }
 
-    // Auto-assign President role + membership
-    await this.prisma.user.update({
-      where: { id: club.presidentId },
-      data: { role: Role.PRESIDENT }
-    });
-    const presMember = await this.prisma.clubMember.findFirst({
-      where: { userId: club.presidentId, clubId: clubId },
-    });
-    if (!presMember) {
-      await this.prisma.clubMember.create({
-        data: { userId: club.presidentId, clubId: clubId, customRole: 'President' },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const approvedClub = await tx.club.update({
+        where: { id: clubId },
+        data: {
+          status: ClubStatus.ACTIVE,
+          approvalRemarks: remarks,
+          approvedAt: new Date(),
+          rejectedAt: null,
+        },
       });
-    } else {
-      await this.prisma.clubMember.update({
-        where: { id: presMember.id },
-        data: { customRole: 'President' },
-      });
-    }
 
-    // Auto-assign VP role + membership
-    await this.prisma.user.update({
-      where: { id: club.vpId },
-      data: { role: Role.VP }
-    });
-    const vpMember = await this.prisma.clubMember.findFirst({
-      where: { userId: club.vpId, clubId: clubId },
-    });
-    if (!vpMember) {
-      await this.prisma.clubMember.create({
-        data: { userId: club.vpId, clubId: clubId, customRole: 'VP' },
+      await tx.user.update({
+        where: { id: club.presidentId! },
+        data: { role: Role.PRESIDENT },
       });
-    } else {
-      await this.prisma.clubMember.update({
-        where: { id: vpMember.id },
-        data: { customRole: 'VP' },
+      await tx.user.update({
+        where: { id: club.vpId! },
+        data: { role: Role.VP },
       });
-    }
+      await tx.user.update({
+        where: { id: club.coordinatorId! },
+        data: { role: Role.COORDINATOR },
+      });
 
-    // Ensure coordinator role is set
-    await this.prisma.user.update({
-      where: { id: club.coordinatorId },
-      data: { role: Role.COORDINATOR }
+      await this.ensureMembership(tx, clubId, club.presidentId!, 'President');
+      await this.ensureMembership(tx, clubId, club.vpId!, 'Vice President');
+
+      return approvedClub;
+    });
+
+    await this.algorand.triggerLifecycleAction({
+      action: BlockchainActionType.MINT,
+      contractType: CollegeContractType.ENTRY_TOKEN,
+      entityId: updated.id,
+      walletAddress: club.president?.walletAddress,
+      metadata: {
+        reason: 'club_approval',
+        clubId: updated.id,
+        userId: club.presidentId,
+        targetWalletAddress: club.president?.walletAddress,
+      },
+    });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'club',
+      action: 'approved',
+      entityId: updated.id,
+      payload: {
+        approvedAt: updated.approvedAt,
+        presidentId: club.presidentId,
+      },
     });
 
     return updated;
   }
 
-  async rejectClub(clubId: string) {
-    return this.prisma.club.update({
+  async rejectClub(clubId: string, remarks?: string) {
+    const club = await this.prisma.club.update({
       where: { id: clubId },
-      data: { status: ClubStatus.INACTIVE }
+      data: {
+        status: ClubStatus.INACTIVE,
+        approvalRemarks: remarks,
+        rejectedAt: new Date(),
+      },
     });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'club',
+      action: 'rejected',
+      entityId: club.id,
+      payload: {
+        remarks,
+      },
+    });
+
+    return club;
   }
 
   async getActiveClubs() {
     return this.prisma.club.findMany({
       where: { status: ClubStatus.ACTIVE },
-      include: { president: { select: { name: true } } }
+      include: {
+        president: { select: { id: true, name: true, email: true } },
+        coordinator: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
     });
   }
 
-  async getGlobalStats() {
-    const [clubCount, memberCount, eventCount, totalBudget] = await Promise.all([
-      this.prisma.club.count({ where: { status: ClubStatus.ACTIVE } }),
-      this.prisma.user.count({ where: { NOT: { role: Role.GUEST } } }),
-      this.prisma.event.count({ where: { status: 'APPROVED' } }),
-      this.prisma.event.aggregate({ _sum: { budget: true } }),
-    ]);
+  async getClubById(clubId: string) {
+    const club = await this.prisma.club.findFirst({
+      where: { id: clubId },
+      include: {
+        president: { select: { id: true, name: true, email: true } },
+        vp: { select: { id: true, name: true, email: true } },
+        coordinator: { select: { id: true, name: true, email: true } },
+        _count: {
+          select: { members: true, events: true, sponsors: true, tasks: true },
+        },
+      },
+    });
 
-    return {
-      clubCount,
-      memberCount,
-      eventCount,
-      totalBudget: totalBudget._sum.budget || 0,
-    };
+    if (!club) {
+      throw new NotFoundException('Club not found');
+    }
+
+    return club;
+  }
+
+  async updateClub(
+    clubId: string,
+    userId: string,
+    data: {
+      name?: string;
+      description?: string;
+      category?: string;
+      coordinatorEmailOrId?: string;
+      vpEmailOrId?: string;
+    },
+  ) {
+    const club = await this.prisma.club.findFirst({
+      where: { id: clubId },
+      include: {
+        president: { select: { id: true } },
+      },
+    });
+    if (!club) throw new NotFoundException('Club not found');
+
+    const requester = await this.prisma.user.findFirst({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const isOwner = club.presidentId === userId || club.vpId === userId;
+    const isAdmin = requester?.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('Not authorized to update this club');
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (data.name) updateData.name = data.name;
+    if (data.description) updateData.description = data.description;
+    if (data.category) updateData.category = data.category;
+
+    if (data.coordinatorEmailOrId) {
+      const coordinator = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.coordinatorEmailOrId },
+            { studentId: data.coordinatorEmailOrId },
+          ],
+        },
+      });
+      if (!coordinator) {
+        throw new NotFoundException('Faculty Coordinator not found');
+      }
+      updateData.coordinatorId = coordinator.id;
+    }
+
+    if (data.vpEmailOrId) {
+      const vp = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.vpEmailOrId },
+            { studentId: data.vpEmailOrId },
+          ],
+        },
+      });
+      if (!vp) {
+        throw new NotFoundException('Vice President not found');
+      }
+      updateData.vpId = vp.id;
+    }
+
+    const updated = await this.prisma.club.update({
+      where: { id: clubId },
+      data: updateData,
+    });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'club',
+      action: 'updated',
+      entityId: updated.id,
+      payload: updateData,
+    });
+
+    return updated;
+  }
+
+  async deleteClub(clubId: string, userId: string) {
+    const club = await this.prisma.club.findFirst({
+      where: { id: clubId },
+      select: {
+        id: true,
+        presidentId: true,
+        vpId: true,
+      },
+    });
+    if (!club) throw new NotFoundException('Club not found');
+
+    const requester = await this.prisma.user.findFirst({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const isOwner = club.presidentId === userId || club.vpId === userId;
+    const isAdmin = requester?.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('Not authorized to archive this club');
+    }
+
+    const archived = await this.prisma.club.update({
+      where: { id: clubId },
+      data: { status: ClubStatus.INACTIVE },
+    });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'club',
+      action: 'archived',
+      entityId: archived.id,
+    });
+
+    return archived;
+  }
+
+  async getGlobalStats() {
+    return this.insights.getDashboardStats();
   }
 
   async getAllClubsWithStats() {
@@ -150,17 +364,40 @@ export class ClubService {
         _count: { select: { members: true, events: true } },
         president: { select: { name: true, email: true } },
       },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
   }
 
   async getMyClub(userId: string) {
     return this.prisma.club.findFirst({
       where: { OR: [{ presidentId: userId }, { vpId: userId }] },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        status: true,
+        presidentId: true,
+        vpId: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async sendInvitation(clubId: string, emailOrId: string, customRole?: string) {
+  async sendInvitation(clubId: string, senderId: string, emailOrId: string, customRole?: string) {
+    const club = await this.prisma.club.findFirst({
+      where: { id: clubId },
+      select: {
+        presidentId: true,
+        vpId: true,
+      },
+    });
+    if (!club) throw new NotFoundException('Club not found');
+
+    const isOwner = club.presidentId === senderId || club.vpId === senderId;
+    if (!isOwner) {
+      throw new ForbiddenException('Not authorized to invite members to this club');
+    }
+
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email: emailOrId }, { studentId: emailOrId }] },
     });
@@ -168,6 +405,7 @@ export class ClubService {
 
     return this.prisma.invitation.create({
       data: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
         clubId,
         userId: user.id,
         customRole,
@@ -179,18 +417,22 @@ export class ClubService {
     return this.prisma.invitation.findMany({
       where: { userId, status: 'PENDING' },
       include: { club: { select: { name: true, category: true } } },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async respondToInvitation(invitationId: string, userId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const invite = await this.prisma.invitation.findUnique({
+    const invite = await this.prisma.invitation.findFirst({
       where: { id: invitationId },
     });
-    if (!invite || invite.userId !== userId) throw new Error('Invitation not found or unauthorized');
+    if (!invite || invite.userId !== userId) {
+      throw new NotFoundException('Invitation not found or unauthorized');
+    }
 
     if (status === 'ACCEPTED') {
       await this.prisma.clubMember.create({
         data: {
+          collegeId: this.getCurrentCollegeIdOrThrow(),
           userId: invite.userId,
           clubId: invite.clubId,
           customRole: invite.customRole,
@@ -207,7 +449,44 @@ export class ClubService {
   async getMembers(clubId: string) {
     return this.prisma.clubMember.findMany({
       where: { clubId },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } },
+      orderBy: { joinedAt: 'asc' },
     });
+  }
+
+  private async ensureMembership(
+    tx: Prisma.TransactionClient,
+    clubId: string,
+    userId: string,
+    customRole: string,
+  ) {
+    const existing = await tx.clubMember.findFirst({
+      where: { userId, clubId },
+    });
+
+    if (!existing) {
+      await tx.clubMember.create({
+        data: {
+          collegeId: this.getCurrentCollegeIdOrThrow(),
+          userId,
+          clubId,
+          customRole,
+        },
+      });
+      return;
+    }
+
+    await tx.clubMember.update({
+      where: { id: existing.id },
+      data: { customRole },
+    });
+  }
+
+  private getCurrentCollegeIdOrThrow() {
+    const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+    if (!collegeId) {
+      throw new BadRequestException('College context not available');
+    }
+    return collegeId;
   }
 }

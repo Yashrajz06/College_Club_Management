@@ -1,12 +1,20 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
-import { ClubService } from './club.service';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ClubService } from './club.service';
 
 @Controller('club')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ClubController {
   constructor(private readonly clubService: ClubService) {}
 
@@ -21,8 +29,10 @@ export class ClubController {
         vpEmailOrId: body.vpEmailOrId,
         coordinatorEmailOrId: body.coordinatorEmailOrId,
       });
-    } catch (e) {
-      throw new BadRequestException(e.message);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Failed to create club request',
+      );
     }
   }
 
@@ -34,19 +44,19 @@ export class ClubController {
 
   @Patch(':id/approve')
   @Roles(Role.ADMIN)
-  async approveClub(@Param('id') id: string) {
-    return this.clubService.approveClub(id);
+  async approveClub(@Param('id') id: string, @Body('remarks') remarks?: string) {
+    return this.clubService.approveClub(id, remarks);
   }
 
   @Patch(':id/reject')
   @Roles(Role.ADMIN)
-  async rejectClub(@Param('id') id: string) {
-    return this.clubService.rejectClub(id);
+  async rejectClub(@Param('id') id: string, @Body('remarks') remarks?: string) {
+    return this.clubService.rejectClub(id, remarks);
   }
 
+  @Public()
   @Get()
   async getActiveClubs() {
-    // Open to all authenticated users
     return this.clubService.getActiveClubs();
   }
 
@@ -70,8 +80,17 @@ export class ClubController {
 
   @Post(':id/invite')
   @Roles(Role.PRESIDENT, Role.VP)
-  async inviteMember(@Param('id') clubId: string, @Body() body: { emailOrId: string, customRole?: string }) {
-    return this.clubService.sendInvitation(clubId, body.emailOrId, body.customRole);
+  async inviteMember(
+    @Param('id') clubId: string,
+    @Request() req: any,
+    @Body() body: { emailOrId: string; customRole?: string },
+  ) {
+    return this.clubService.sendInvitation(
+      clubId,
+      req.user.userId,
+      body.emailOrId,
+      body.customRole,
+    );
   }
 
   @Get('my-invitations')
@@ -80,12 +99,42 @@ export class ClubController {
   }
 
   @Patch('invitation/:id/respond')
-  async respondToInvite(@Param('id') inviteId: string, @Request() req: any, @Body() body: { status: 'ACCEPTED' | 'REJECTED' }) {
-    return this.clubService.respondToInvitation(inviteId, req.user.userId, body.status);
+  async respondToInvite(
+    @Param('id') inviteId: string,
+    @Request() req: any,
+    @Body() body: { status: 'ACCEPTED' | 'REJECTED' },
+  ) {
+    return this.clubService.respondToInvitation(
+      inviteId,
+      req.user.userId,
+      body.status,
+    );
   }
 
   @Get(':id/members')
   async getMembers(@Param('id') clubId: string) {
     return this.clubService.getMembers(clubId);
+  }
+
+  @Public()
+  @Get(':id')
+  async getClub(@Param('id') clubId: string) {
+    return this.clubService.getClubById(clubId);
+  }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.PRESIDENT, Role.VP)
+  async updateClub(
+    @Param('id') clubId: string,
+    @Request() req: any,
+    @Body() body: any,
+  ) {
+    return this.clubService.updateClub(clubId, req.user.userId, body);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN, Role.PRESIDENT, Role.VP)
+  async deleteClub(@Param('id') clubId: string, @Request() req: any) {
+    return this.clubService.deleteClub(clubId, req.user.userId);
   }
 }

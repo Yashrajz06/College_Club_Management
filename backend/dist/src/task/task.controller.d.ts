@@ -6,10 +6,12 @@ export declare class TaskController {
     createTask(req: any, body: any): Promise<{
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -17,10 +19,12 @@ export declare class TaskController {
     updateStatus(req: any, id: string, status: TaskStatus): Promise<{
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -33,10 +37,12 @@ export declare class TaskController {
     } & {
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -48,10 +54,12 @@ export declare class TaskController {
     } & {
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;

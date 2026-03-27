@@ -1,8 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskStatus, TaskPriority } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
 export declare class TaskService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private readonly cls;
+    constructor(prisma: PrismaService, cls: ClsService);
     createTask(data: {
         title: string;
         description: string;
@@ -14,10 +16,33 @@ export declare class TaskService {
     }): Promise<{
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
+        deadline: Date | null;
+        priority: import(".prisma/client").$Enums.TaskPriority;
+        assigneeId: string;
+    }>;
+    createSystemTask(data: {
+        title: string;
+        description: string;
+        deadline?: Date;
+        priority?: TaskPriority;
+        clubId: string;
+        assigneeId: string;
+        eventId?: string;
+    }): Promise<{
+        id: string;
+        createdAt: Date;
+        collegeId: string;
+        description: string;
+        status: import(".prisma/client").$Enums.TaskStatus;
+        clubId: string;
+        title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -25,10 +50,12 @@ export declare class TaskService {
     updateTaskStatus(taskId: string, status: TaskStatus, requesterId: string): Promise<{
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -41,10 +68,12 @@ export declare class TaskService {
     } & {
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
@@ -56,12 +85,15 @@ export declare class TaskService {
     } & {
         id: string;
         createdAt: Date;
+        collegeId: string;
         description: string;
         status: import(".prisma/client").$Enums.TaskStatus;
         clubId: string;
         title: string;
+        eventId: string | null;
         deadline: Date | null;
         priority: import(".prisma/client").$Enums.TaskPriority;
         assigneeId: string;
     })[]>;
+    private getCurrentCollegeIdOrThrow;
 }

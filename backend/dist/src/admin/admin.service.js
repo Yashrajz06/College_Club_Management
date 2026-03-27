@@ -48,12 +48,15 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const mail_service_1 = require("../mail/mail.service");
 const crypto = __importStar(require("crypto"));
 const client_1 = require("@prisma/client");
+const nestjs_cls_1 = require("nestjs-cls");
 let AdminService = class AdminService {
     prisma;
     mailService;
-    constructor(prisma, mailService) {
+    cls;
+    constructor(prisma, mailService, cls) {
         this.prisma = prisma;
         this.mailService = mailService;
+        this.cls = cls;
     }
     async inviteCoordinator(dto) {
         const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -65,6 +68,7 @@ let AdminService = class AdminService {
         expiry.setHours(expiry.getHours() + 24);
         await this.prisma.user.create({
             data: {
+                collegeId: this.getCurrentCollegeIdOrThrow(),
                 name: dto.name,
                 email: dto.email,
                 passwordHash: '',
@@ -119,11 +123,19 @@ let AdminService = class AdminService {
         });
         return coordinators;
     }
+    getCurrentCollegeIdOrThrow() {
+        const collegeId = this.cls.isActive() ? this.cls.get('collegeId') : undefined;
+        if (!collegeId) {
+            throw new common_1.BadRequestException('College context is required');
+        }
+        return collegeId;
+    }
 };
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        mail_service_1.MailService])
+        mail_service_1.MailService,
+        nestjs_cls_1.ClsService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

@@ -10,13 +10,17 @@ exports.ClubModule = void 0;
 const common_1 = require("@nestjs/common");
 const club_controller_1 = require("./club.controller");
 const club_service_1 = require("./club.service");
+const finance_module_1 = require("../finance/finance.module");
+const insights_module_1 = require("../insights/insights.module");
 let ClubModule = class ClubModule {
 };
 exports.ClubModule = ClubModule;
 exports.ClubModule = ClubModule = __decorate([
     (0, common_1.Module)({
+        imports: [finance_module_1.FinanceModule, insights_module_1.InsightsModule],
         controllers: [club_controller_1.ClubController],
-        providers: [club_service_1.ClubService]
+        providers: [club_service_1.ClubService],
+        exports: [club_service_1.ClubService],
     })
 ], ClubModule);
 //# sourceMappingURL=club.module.js.map

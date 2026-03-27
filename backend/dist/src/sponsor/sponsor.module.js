@@ -10,13 +10,17 @@ exports.SponsorModule = void 0;
 const common_1 = require("@nestjs/common");
 const sponsor_controller_1 = require("./sponsor.controller");
 const sponsor_service_1 = require("./sponsor.service");
+const ai_module_1 = require("../ai/ai.module");
+const insights_module_1 = require("../insights/insights.module");
 let SponsorModule = class SponsorModule {
 };
 exports.SponsorModule = SponsorModule;
 exports.SponsorModule = SponsorModule = __decorate([
     (0, common_1.Module)({
+        imports: [ai_module_1.AiModule, insights_module_1.InsightsModule],
         controllers: [sponsor_controller_1.SponsorController],
-        providers: [sponsor_service_1.SponsorService]
+        providers: [sponsor_service_1.SponsorService],
+        exports: [sponsor_service_1.SponsorService],
     })
 ], SponsorModule);
 //# sourceMappingURL=sponsor.module.js.map

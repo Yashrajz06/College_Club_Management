@@ -13,6 +13,15 @@ async function main() {
   console.log('--- College Admin Seeder ---');
   console.log(`Checking if admin ${ADMIN_EMAIL} exists...`);
 
+  const college = await prisma.college.upsert({
+    where: { name: COLLEGE_NAME },
+    update: {},
+    create: {
+      name: COLLEGE_NAME,
+      domain: 'mit.edu.in',
+    },
+  });
+
   const existing = await prisma.user.findUnique({
     where: { email: ADMIN_EMAIL },
   });
@@ -26,6 +35,7 @@ async function main() {
 
   await prisma.user.create({
     data: {
+      collegeId: college.id,
       name: ADMIN_NAME,
       email: ADMIN_EMAIL,
       passwordHash,

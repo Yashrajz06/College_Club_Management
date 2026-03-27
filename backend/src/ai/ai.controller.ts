@@ -21,4 +21,20 @@ export class AiController {
   async generatePoster(@Query('prompt') prompt: string) {
     return this.aiService.generatePosterBackground(prompt);
   }
+
+  @Get('generate-event-poster')
+  @Roles(Role.PRESIDENT, Role.VP)
+  async generateEventPoster(
+    @Query('eventId') eventId: string,
+    @Query('mood') mood?: string,
+    @Query('tagline') tagline?: string,
+  ) {
+    return this.aiService.generateEventPoster(eventId, { mood, tagline });
+  }
+
+  @Get('assistant-context')
+  @Roles(Role.PRESIDENT, Role.VP, Role.COORDINATOR, Role.ADMIN)
+  async getAssistantContext() {
+    return this.aiService.getAssistantContext();
+  }
 }

@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { InsightsService } from '../insights/insights.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class AiService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly insights: InsightsService,
+    private readonly supabase: SupabaseService,
+  ) { }
 
   // ─────────────────────────────────────────────
   // 1. SPONSOR OUTREACH — actual Ollama call
@@ -162,6 +168,65 @@ export class AiService {
     }
   }
 
+  async generateEventPoster(eventId: string, options?: { mood?: string; tagline?: string }) {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId },
+      include: {
+        club: {
+          select: {
+            name: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    const prompt = [
+      `Create a poster-ready event background for "${event.title}"`,
+      event.category ? `event category: ${event.category}` : null,
+      `club: ${event.club.name}`,
+      `venue: ${event.venue}`,
+      options?.mood ? `visual mood: ${options.mood}` : null,
+      options?.tagline ? `tagline inspiration: ${options.tagline}` : null,
+      'high contrast composition, campus event design, no text baked into the image',
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const poster = await this.generatePosterBackground(prompt);
+    const persistedImageUrl = await this.persistPosterAsset(
+      event.id,
+      poster.imageUrl,
+    );
+
+    await this.prisma.event.update({
+      where: { id: event.id },
+      data: {
+        posterPrompt: prompt,
+        posterImageUrl: persistedImageUrl,
+      },
+    });
+
+    await this.insights.recordSyncEvent({
+      entityType: 'poster',
+      action: 'generated',
+      entityId: event.id,
+      payload: {
+        source: poster.source,
+      },
+    });
+
+    return {
+      ...poster,
+      imageUrl: persistedImageUrl,
+      prompt,
+    };
+  }
+
   // ─────────────────────────────────────────────
   // 3. GUEST CERTIFICATES — proper implementation
   // ─────────────────────────────────────────────
@@ -233,6 +298,47 @@ export class AiService {
       return response.ok;
     } catch {
       return false;
+    }
+  }
+
+  async getAssistantContext() {
+    return this.insights.getAssistantContext();
+  }
+
+  private async persistPosterAsset(eventId: string, imageUrl: string) {
+    if (!imageUrl.startsWith('data:image/')) {
+      return imageUrl;
+    }
+
+    try {
+      const [, mimeType, data] =
+        imageUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/) || [];
+
+      if (!mimeType || !data) {
+        return imageUrl;
+      }
+
+      const extension = mimeType.split('/')[1] || 'png';
+      const path = `${this.insights.getCurrentCollegeIdOrThrow()}/events/${eventId}/poster.${extension}`;
+
+      const client = this.supabase.getClient();
+      const bytes = Buffer.from(data, 'base64');
+
+      await client.storage
+        .from(process.env.SUPABASE_POSTER_BUCKET || 'ai-posters')
+        .upload(path, bytes, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      const { data: publicUrlData } = client.storage
+        .from(process.env.SUPABASE_POSTER_BUCKET || 'ai-posters')
+        .getPublicUrl(path);
+
+      return publicUrlData.publicUrl || imageUrl;
+    } catch (error) {
+      console.warn('Supabase poster upload failed, using raw image data', error);
+      return imageUrl;
     }
   }
 }

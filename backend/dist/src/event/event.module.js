@@ -11,15 +11,18 @@ const common_1 = require("@nestjs/common");
 const event_controller_1 = require("./event.controller");
 const event_service_1 = require("./event.service");
 const ai_module_1 = require("../ai/ai.module");
+const finance_module_1 = require("../finance/finance.module");
+const insights_module_1 = require("../insights/insights.module");
 const mail_module_1 = require("../mail/mail.module");
 let EventModule = class EventModule {
 };
 exports.EventModule = EventModule;
 exports.EventModule = EventModule = __decorate([
     (0, common_1.Module)({
-        imports: [ai_module_1.AiModule, mail_module_1.MailModule],
+        imports: [ai_module_1.AiModule, mail_module_1.MailModule, finance_module_1.FinanceModule, insights_module_1.InsightsModule],
         controllers: [event_controller_1.EventController],
-        providers: [event_service_1.EventService]
+        providers: [event_service_1.EventService],
+        exports: [event_service_1.EventService],
     })
 ], EventModule);
 //# sourceMappingURL=event.module.js.map

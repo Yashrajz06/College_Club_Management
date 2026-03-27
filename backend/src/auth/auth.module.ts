@@ -4,10 +4,12 @@ import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
+import { FinanceModule } from '../finance/finance.module';
 
 @Module({
   imports: [
     PassportModule,
+    FinanceModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'super_secret_jwt_key_for_hackathon',
       signOptions: { expiresIn: '15m' },

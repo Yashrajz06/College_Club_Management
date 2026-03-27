@@ -40,6 +40,14 @@ interface RegisterCollegeContractInput {
   metadata?: Record<string, unknown>;
 }
 
+interface LifecycleBlockchainActionInput {
+  action: BlockchainActionType;
+  contractType: CollegeContractType;
+  entityId: string;
+  walletAddress?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class AlgorandService {
   private readonly logger = new Logger(AlgorandService.name);
@@ -384,6 +392,70 @@ export class AlgorandService {
     return Array.from(deduped.values()).slice(0, limit);
   }
 
+  async triggerLifecycleAction(input: LifecycleBlockchainActionInput) {
+    const contract = await this.getActiveCollegeContract(input.contractType);
+    const notePayload = this.createCollegeNotePayload({
+      action: input.action,
+      contractType: input.contractType,
+      entityId: input.entityId,
+      metadata: input.metadata,
+    });
+    const note = JSON.stringify(notePayload);
+
+    if (input.walletAddress && algosdk.isValidAddress(input.walletAddress)) {
+      try {
+        const onChain = await this.submitServerSignedNoteTransaction({
+          action: input.action,
+          contractType: input.contractType,
+          metadata: input.metadata,
+          entityId: input.entityId,
+        });
+
+        const activity = await this.prisma.blockchainActivity.create({
+          data: {
+            collegeId: this.getCurrentCollegeIdOrThrow(),
+            contractId: contract?.id,
+            action: input.action,
+            txId: onChain.txId,
+            walletAddress: input.walletAddress,
+            note: onChain.note,
+            status: BlockchainSyncStatus.CONFIRMED,
+            metadata: {
+              ...notePayload,
+              contractId: contract?.id,
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        return {
+          status: BlockchainSyncStatus.CONFIRMED,
+          txId: onChain.txId,
+          activity,
+        };
+      } catch (error) {
+        this.logger.warn(
+          `Lifecycle action ${input.action} fell back to pending sync: ${String(
+            error,
+          )}`,
+        );
+      }
+    }
+
+    const pending = await this.createPendingLifecycleActivity({
+      contractId: contract?.id,
+      walletAddress: input.walletAddress,
+      action: input.action,
+      note,
+      metadata: notePayload,
+    });
+
+    return {
+      status: pending.status,
+      txId: pending.txId,
+      activity: pending,
+    };
+  }
+
   private getAlgodConfig() {
     if (this.getNetworkName() === 'localnet') {
       return {
@@ -482,6 +554,29 @@ export class AlgorandService {
           ? input.assetId ?? null
           : undefined,
     };
+  }
+
+  private async createPendingLifecycleActivity(input: {
+    contractId?: string;
+    walletAddress?: string | null;
+    action: BlockchainActionType;
+    note: string;
+    metadata: Record<string, unknown>;
+  }) {
+    const txId = `pending-${input.action.toLowerCase()}-${Date.now()}`;
+
+    return this.prisma.blockchainActivity.create({
+      data: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
+        contractId: input.contractId,
+        action: input.action,
+        txId,
+        walletAddress: input.walletAddress ?? undefined,
+        note: input.note,
+        status: BlockchainSyncStatus.PENDING,
+        metadata: input.metadata as Prisma.InputJsonValue,
+      },
+    });
   }
 
   private noteBelongsToCollege(note: string | undefined, collegeId: string) {

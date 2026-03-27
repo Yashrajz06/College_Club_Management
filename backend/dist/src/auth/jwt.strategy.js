@@ -14,27 +14,35 @@ const passport_jwt_1 = require("passport-jwt");
 const passport_1 = require("@nestjs/passport");
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const nestjs_cls_1 = require("nestjs-cls");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     prisma;
-    constructor(prisma) {
+    cls;
+    constructor(prisma, cls) {
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
             secretOrKey: process.env.JWT_SECRET || 'super_secret_jwt_key_for_hackathon',
         });
         this.prisma = prisma;
+        this.cls = cls;
     }
     async validate(payload) {
-        const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+        const user = await this.prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: { id: true, email: true, role: true, collegeId: true }
+        });
         if (!user) {
             throw new common_1.UnauthorizedException();
         }
-        return { userId: payload.sub, email: payload.email, role: user.role };
+        this.cls.set('collegeId', user.collegeId);
+        return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId };
     }
 };
 exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        nestjs_cls_1.ClsService])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

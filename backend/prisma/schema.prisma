@@ -26,6 +26,7 @@ model College {
   registrations Registration[]
   contracts     CollegeContract[]
   blockchainActivities BlockchainActivity[]
+  governanceProposals GovernanceProposal[]
 }
 
 model CollegeConfig {
@@ -96,6 +97,7 @@ model User {
   isVerified      Boolean        @default(false)
 
   role            Role           @default(MEMBER)
+  walletAddress   String?        // Pera Wallet address
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -110,6 +112,7 @@ model User {
   registrations    Registration[]
   assignedTasks    Task[]        @relation("AssignedTo")
   receivedInvitations Invitation[]
+  governanceProposals GovernanceProposal[]
 
   @@index([collegeId])
 }
@@ -126,8 +129,12 @@ model Club {
   description      String
   category         String
   status           ClubStatus   @default(PENDING)
+  approvalRemarks  String?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
   prizePoolBalance Float        @default(0.0)
   createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   collegeId        String
   college          College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
@@ -146,6 +153,7 @@ model Club {
   transactions     Transaction[]
   tasks            Task[]
   invitations      Invitation[]
+  proposals        GovernanceProposal[]
 
   @@index([collegeId])
 }
@@ -177,13 +185,21 @@ model Event {
   id           String       @id @default(uuid())
   title        String
   description  String
+  category     String?
   date         DateTime
   venue        String
   capacity     Int
   budget       Float        @default(0.0)
   status       EventStatus  @default(PENDING)
+  approvalRemarks String?
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
   isPublic     Boolean      @default(false)
+  posterPrompt String?
+  posterImageUrl String?
+  treasuryPlaceholderTxId String?
   createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   collegeId    String
   college      College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
@@ -194,6 +210,8 @@ model Event {
   
   registrations Registration[]
   transactions  Transaction[]
+  tasks         Task[]
+  proposals     GovernanceProposal[]
 
   @@index([collegeId])
 }
@@ -232,7 +250,10 @@ model Sponsor {
   email          String?
   phone          String?
   status         SponsorStatus @default(PROSPECT)
+  outreachDraft  String?
+  lastContactedAt DateTime?
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   collegeId      String
   college        College       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
@@ -330,6 +351,14 @@ enum TaskStatus {
   DONE
 }
 
+enum GovernanceProposalStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
 model Task {
   id          String       @id @default(uuid())
   title       String
@@ -345,10 +374,34 @@ model Task {
   // Relationships
   clubId      String
   club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId     String?
+  event       Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
   assigneeId  String
   assignee    User         @relation("AssignedTo", fields: [assigneeId], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
+}
+
+model GovernanceProposal {
+  id          String                   @id @default(uuid())
+  title       String
+  description String
+  status      GovernanceProposalStatus @default(DRAFT)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  collegeId   String
+  college     College                  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  clubId      String
+  club        Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId     String
+  event       Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  proposerId  String
+  proposer    User                     @relation(fields: [proposerId], references: [id], onDelete: Cascade)
+
+  @@index([collegeId])
+  @@index([eventId])
 }
 
 enum InvitationStatus {
