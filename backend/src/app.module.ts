@@ -25,6 +25,7 @@ import { GovernanceModule } from './governance/governance.module';
 import { InsightsModule } from './insights/insights.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { TreasuryModule } from './treasury/treasury.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { TreasuryModule } from './treasury/treasury.module';
       global: true,
       middleware: { mount: true },
     }),
-    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule
+    PrismaModule, AuthModule, MailModule, ClubModule, TaskModule, EventModule, FinanceModule, TreasuryModule, AttendanceModule, SponsorModule, AiModule, MediaModule, NotificationModule, ReportModule, AdminModule, CollegesModule, GovernanceModule, InsightsModule, SupabaseModule
   ],
   controllers: [AppController],
   providers: [

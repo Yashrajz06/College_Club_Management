@@ -29,6 +29,7 @@ import { CollegeSwitcher } from './CollegeSwitcher';
 import Profile from './Profile';
 import Governance from './Governance';
 import TreasuryExplorer from './TreasuryExplorer';
+import AttendanceScanner from './AttendanceScanner';
 
 function App() {
   const dispatch = useDispatch();
@@ -98,6 +99,7 @@ function App() {
                           <Link to="/taskboard" className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">Task Board</Link>
                           <Link to="/ledger" className="block px-4 py-2 text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">Financial Ledger</Link>
                           <Link to="/treasury" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Treasury Explorer</Link>
+                          <Link to="/attendance" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Attendance PoP</Link>
                           <Link to="/finances" className="block px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700">Sponsor CRM</Link>
                           <div className="border-t border-slate-100 my-1"></div>
                           <Link to="/studio" className="block px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 flex items-center gap-2"><span>✨</span> AI Studio</Link>
@@ -152,6 +154,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/governance" element={<Governance />} />
             <Route path="/treasury" element={<TreasuryExplorer />} />
+            <Route path="/attendance" element={<AttendanceScanner />} />
           </Routes>
         </main>
 
