@@ -29,15 +29,15 @@ export declare class FinanceService {
         } | null;
     } & {
         id: string;
-        walletAddress: string | null;
         collegeId: string;
+        walletAddress: string | null;
         description: string;
         clubId: string;
         date: Date;
-        amount: number;
-        type: import(".prisma/client").$Enums.TransactionType;
         txnHash: string | null;
         blockchainActivityId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
         eventId: string | null;
         sponsorId: string | null;
     }>;
@@ -60,15 +60,15 @@ export declare class FinanceService {
         } | null;
     } & {
         id: string;
-        walletAddress: string | null;
         collegeId: string;
+        walletAddress: string | null;
         description: string;
         clubId: string;
         date: Date;
-        amount: number;
-        type: import(".prisma/client").$Enums.TransactionType;
         txnHash: string | null;
         blockchainActivityId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
         eventId: string | null;
         sponsorId: string | null;
     }>;
@@ -82,15 +82,15 @@ export declare class FinanceService {
         } | null;
     } & {
         id: string;
-        walletAddress: string | null;
         collegeId: string;
+        walletAddress: string | null;
         description: string;
         clubId: string;
         date: Date;
-        amount: number;
-        type: import(".prisma/client").$Enums.TransactionType;
         txnHash: string | null;
         blockchainActivityId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
         eventId: string | null;
         sponsorId: string | null;
     })[]>;

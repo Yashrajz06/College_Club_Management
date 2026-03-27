@@ -31,8 +31,8 @@ export declare class TaskController {
     }>;
     getClubTasks(req: any, clubId: string): Promise<({
         assignee: {
-            email: string;
             name: string;
+            email: string;
         };
     } & {
         id: string;

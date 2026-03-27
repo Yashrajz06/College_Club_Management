@@ -5,25 +5,22 @@ export declare class ClubController {
     createRequest(req: any, body: any): Promise<{
         coordinator: {
             id: string;
-            email: string;
             name: string;
+            email: string;
         } | null;
         president: {
             id: string;
-            email: string;
             name: string;
+            email: string;
         } | null;
         vp: {
             id: string;
-            email: string;
             name: string;
+            email: string;
         } | null;
     } & {
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -31,29 +28,29 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
     }>;
     getPending(): Promise<({
         coordinator: {
-            email: string;
             name: string;
+            email: string;
         } | null;
         president: {
-            email: string;
             name: string;
+            email: string;
         } | null;
         vp: {
-            email: string;
             name: string;
+            email: string;
         } | null;
     } & {
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -61,6 +58,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -68,9 +68,6 @@ export declare class ClubController {
     approveClub(id: string, remarks?: string): Promise<{
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -78,6 +75,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -85,9 +85,6 @@ export declare class ClubController {
     rejectClub(id: string, remarks?: string): Promise<{
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -95,6 +92,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -106,15 +106,12 @@ export declare class ClubController {
         } | null;
         president: {
             id: string;
-            email: string;
             name: string;
+            email: string;
         } | null;
     } & {
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -122,6 +119,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -144,20 +144,17 @@ export declare class ClubController {
         treasuryTrackedClubs: number;
     }>;
     getAllWithStats(): Promise<({
+        president: {
+            name: string;
+            email: string;
+        } | null;
         _count: {
             members: number;
             events: number;
         };
-        president: {
-            email: string;
-            name: string;
-        } | null;
     } & {
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -165,6 +162,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -182,11 +182,11 @@ export declare class ClubController {
         customRole?: string;
     }): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.InvitationStatus;
         createdAt: Date;
         collegeId: string;
-        status: import(".prisma/client").$Enums.InvitationStatus;
-        userId: string;
         clubId: string;
+        userId: string;
         customRole: string | null;
     }>;
     getMyInvitations(req: any): Promise<({
@@ -196,67 +196,64 @@ export declare class ClubController {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.InvitationStatus;
         createdAt: Date;
         collegeId: string;
-        status: import(".prisma/client").$Enums.InvitationStatus;
-        userId: string;
         clubId: string;
+        userId: string;
         customRole: string | null;
     })[]>;
     respondToInvite(inviteId: string, req: any, body: {
         status: 'ACCEPTED' | 'REJECTED';
     }): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.InvitationStatus;
         createdAt: Date;
         collegeId: string;
-        status: import(".prisma/client").$Enums.InvitationStatus;
-        userId: string;
         clubId: string;
+        userId: string;
         customRole: string | null;
     }>;
     getMembers(clubId: string): Promise<({
         user: {
             id: string;
-            email: string;
             name: string;
+            email: string;
             role: import(".prisma/client").$Enums.Role;
         };
     } & {
         id: string;
         collegeId: string;
-        userId: string;
         clubId: string;
+        userId: string;
         customRole: string | null;
         joinedAt: Date;
     })[]>;
     getClub(clubId: string): Promise<{
+        coordinator: {
+            id: string;
+            name: string;
+            email: string;
+        } | null;
+        president: {
+            id: string;
+            name: string;
+            email: string;
+        } | null;
+        vp: {
+            id: string;
+            name: string;
+            email: string;
+        } | null;
         _count: {
             members: number;
             events: number;
             sponsors: number;
             tasks: number;
         };
-        coordinator: {
-            id: string;
-            email: string;
-            name: string;
-        } | null;
-        president: {
-            id: string;
-            email: string;
-            name: string;
-        } | null;
-        vp: {
-            id: string;
-            email: string;
-            name: string;
-        } | null;
     } & {
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -264,6 +261,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -271,9 +271,6 @@ export declare class ClubController {
     updateClub(clubId: string, req: any, body: any): Promise<{
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -281,6 +278,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;
@@ -288,9 +288,6 @@ export declare class ClubController {
     deleteClub(clubId: string, req: any): Promise<{
         id: string;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        collegeId: string;
         description: string;
         category: string;
         status: import(".prisma/client").$Enums.ClubStatus;
@@ -298,6 +295,9 @@ export declare class ClubController {
         approvedAt: Date | null;
         rejectedAt: Date | null;
         prizePoolBalance: number;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
         coordinatorId: string | null;
         presidentId: string | null;
         vpId: string | null;

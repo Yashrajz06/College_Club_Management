@@ -36,7 +36,7 @@ let EventService = class EventService {
     async createEvent(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: data.clubId },
+            where: { id: data.clubId, collegeId },
             select: {
                 id: true,
                 presidentId: true,
@@ -139,10 +139,11 @@ let EventService = class EventService {
         return updated;
     }
     async deleteEvent(eventId, requesterId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.getManagedEvent(eventId, requesterId);
         const [registrationCount, transactionCount] = await Promise.all([
-            this.prisma.registration.count({ where: { eventId } }),
-            this.prisma.transaction.count({ where: { eventId } }),
+            this.prisma.registration.count({ where: { eventId, collegeId } }),
+            this.prisma.transaction.count({ where: { eventId, collegeId } }),
         ]);
         if (registrationCount > 0 || transactionCount > 0) {
             throw new common_1.BadRequestException('Cannot delete an event that already has registrations or transactions.');
@@ -161,13 +162,19 @@ let EventService = class EventService {
         return deleted;
     }
     async getPendingApprovals(coordinatorId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.event.findMany({
-            where: { status: client_1.EventStatus.PENDING, club: { coordinatorId } },
+            where: {
+                collegeId,
+                status: client_1.EventStatus.PENDING,
+                club: { coordinatorId, collegeId },
+            },
             include: { club: { select: { name: true } } },
             orderBy: { createdAt: 'desc' },
         });
     }
-    async approveEvent(eventId, remarks) {
+    async approveEvent(eventId, coordinatorId, remarks) {
+        await this.getCoordinatorApprovalEventOrThrow(eventId, coordinatorId);
         const event = await this.prisma.event.update({
             where: { id: eventId },
             data: {
@@ -187,7 +194,8 @@ let EventService = class EventService {
         });
         return event;
     }
-    async rejectEvent(eventId, remarks) {
+    async rejectEvent(eventId, coordinatorId, remarks) {
+        await this.getCoordinatorApprovalEventOrThrow(eventId, coordinatorId);
         const event = await this.prisma.event.update({
             where: { id: eventId },
             data: {
@@ -207,11 +215,14 @@ let EventService = class EventService {
         return event;
     }
     async getPublishableEvents(userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.event.findMany({
             where: {
+                collegeId,
                 status: client_1.EventStatus.APPROVED,
                 isPublic: false,
                 club: {
+                    collegeId,
                     OR: [{ presidentId: userId }, { vpId: userId }],
                 },
             },
@@ -237,7 +248,8 @@ let EventService = class EventService {
         });
         return updated;
     }
-    async concludeEvent(eventId) {
+    async concludeEvent(eventId, requesterId) {
+        await this.getManagedEvent(eventId, requesterId);
         const updated = await this.prisma.event.update({
             where: { id: eventId },
             data: { status: client_1.EventStatus.CONCLUDED },
@@ -253,8 +265,9 @@ let EventService = class EventService {
         return updated;
     }
     async getPublicEvents() {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.event.findMany({
-            where: { status: client_1.EventStatus.APPROVED, isPublic: true },
+            where: { collegeId, status: client_1.EventStatus.APPROVED, isPublic: true },
             include: {
                 club: { select: { name: true, description: true } },
                 registrations: { select: { id: true } },
@@ -263,8 +276,9 @@ let EventService = class EventService {
         });
     }
     async getEventById(eventId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.prisma.event.findFirst({
-            where: { id: eventId },
+            where: { id: eventId, collegeId },
             include: {
                 club: { select: { id: true, name: true, description: true } },
                 registrations: {
@@ -290,8 +304,9 @@ let EventService = class EventService {
         return event;
     }
     async getClubEvents(clubId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.event.findMany({
-            where: { clubId },
+            where: { clubId, collegeId },
             include: {
                 club: { select: { name: true } },
             },
@@ -299,8 +314,9 @@ let EventService = class EventService {
         });
     }
     async registerForEvent(userId, eventId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.prisma.event.findFirst({
-            where: { id: eventId },
+            where: { id: eventId, collegeId },
             include: {
                 _count: { select: { registrations: true } },
             },
@@ -316,7 +332,7 @@ let EventService = class EventService {
         if (existing)
             throw new common_1.BadRequestException('Already registered for this event');
         const user = await this.prisma.user.findFirst({
-            where: { id: userId },
+            where: { id: userId, collegeId },
             select: {
                 id: true,
                 walletAddress: true,
@@ -327,7 +343,7 @@ let EventService = class EventService {
         const isWaitlisted = event._count.registrations >= event.capacity;
         const registration = await this.prisma.registration.create({
             data: {
-                collegeId: this.getCurrentCollegeIdOrThrow(),
+                collegeId,
                 userId,
                 eventId,
                 isWaitlisted,
@@ -362,8 +378,9 @@ let EventService = class EventService {
         return registration;
     }
     async registerGuest(eventId, guest) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.prisma.event.findFirst({
-            where: { id: eventId },
+            where: { id: eventId, collegeId },
             include: {
                 club: { select: { name: true } },
                 _count: { select: { registrations: true } },
@@ -375,7 +392,7 @@ let EventService = class EventService {
             throw new common_1.BadRequestException('Event is not open for registration');
         }
         let guestUser = await this.prisma.user.findFirst({
-            where: { email: guest.email },
+            where: { email: guest.email, collegeId },
         });
         if (!guestUser) {
             guestUser = await this.prisma.user.create({
@@ -422,8 +439,9 @@ let EventService = class EventService {
         return registration;
     }
     async getEventRegistrations(eventId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.registration.findMany({
-            where: { eventId },
+            where: { eventId, collegeId },
             include: {
                 user: {
                     select: {
@@ -440,14 +458,16 @@ let EventService = class EventService {
         });
     }
     async markAttendance(registrationId, attended) {
+        await this.findRegistrationOrThrow(registrationId);
         return this.prisma.registration.update({
             where: { id: registrationId },
             data: { attended },
         });
     }
     async markAttendanceByQR(qrCode) {
-        const registration = await this.prisma.registration.findUnique({
-            where: { qrCode },
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const registration = await this.prisma.registration.findFirst({
+            where: { qrCode, collegeId },
         });
         if (!registration)
             throw new common_1.NotFoundException('Invalid QR Code');
@@ -457,8 +477,9 @@ let EventService = class EventService {
         });
     }
     async getManagedEvent(eventId, requesterId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const event = await this.prisma.event.findFirst({
-            where: { id: eventId },
+            where: { id: eventId, collegeId },
             include: {
                 club: { select: { presidentId: true, vpId: true } },
             },
@@ -466,13 +487,50 @@ let EventService = class EventService {
         if (!event)
             throw new common_1.NotFoundException('Event not found');
         const requester = await this.prisma.user.findFirst({
-            where: { id: requesterId },
+            where: { id: requesterId, collegeId },
             select: { role: true },
         });
         const isOwner = event.club?.presidentId === requesterId || event.club?.vpId === requesterId;
         const isAdmin = requester?.role === client_1.Role.ADMIN;
         if (!isOwner && !isAdmin) {
             throw new common_1.ForbiddenException('Not authorized to manage this event');
+        }
+        return event;
+    }
+    async findEventOrThrow(eventId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const event = await this.prisma.event.findFirst({
+            where: { id: eventId, collegeId },
+            select: { id: true },
+        });
+        if (!event) {
+            throw new common_1.NotFoundException('Event not found');
+        }
+        return event;
+    }
+    async findRegistrationOrThrow(registrationId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const registration = await this.prisma.registration.findFirst({
+            where: { id: registrationId, collegeId },
+            select: { id: true },
+        });
+        if (!registration) {
+            throw new common_1.NotFoundException('Registration not found');
+        }
+        return registration;
+    }
+    async getCoordinatorApprovalEventOrThrow(eventId, coordinatorId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const event = await this.prisma.event.findFirst({
+            where: {
+                id: eventId,
+                collegeId,
+                club: { is: { coordinatorId, collegeId } },
+            },
+            select: { id: true },
+        });
+        if (!event) {
+            throw new common_1.NotFoundException('Event not found or not assigned to this coordinator');
         }
         return event;
     }

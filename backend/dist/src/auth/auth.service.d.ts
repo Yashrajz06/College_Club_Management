@@ -62,6 +62,8 @@ export declare class AuthService {
     getProfile(userId: string): Promise<{
         id: string;
         name: string;
+        createdAt: Date;
+        collegeId: string;
         email: string;
         studentId: string | null;
         department: string | null;
@@ -69,8 +71,6 @@ export declare class AuthService {
         isVerified: boolean;
         role: import(".prisma/client").$Enums.Role;
         walletAddress: string | null;
-        createdAt: Date;
-        collegeId: string;
     }>;
     updateProfile(userId: string, data: {
         name?: string;

@@ -13,6 +13,7 @@ export class CollegesController {
   }
 
   @Get()
+  @Public()
   async findAll() {
     return this.collegesService.findAll();
   }

@@ -120,10 +120,10 @@ export declare class AlgorandService {
         txId: string;
         activity: {
             id: string;
-            walletAddress: string | null;
             createdAt: Date;
             updatedAt: Date;
             collegeId: string;
+            walletAddress: string | null;
             status: import(".prisma/client").$Enums.BlockchainSyncStatus;
             action: import(".prisma/client").$Enums.BlockchainActionType;
             metadata: Prisma.JsonValue | null;

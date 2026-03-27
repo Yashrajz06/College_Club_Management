@@ -7,6 +7,6 @@ import { TokenGateService } from './token-gate.service';
 @Module({
   controllers: [FinanceController],
   providers: [FinanceService, AlgorandService, TokenGateService],
-  exports: [AlgorandService, TokenGateService],
+  exports: [FinanceService, AlgorandService, TokenGateService],
 })
 export class FinanceModule {}

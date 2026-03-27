@@ -98,7 +98,7 @@ export declare class EventController {
         collegeId: string;
         clubId: string;
     })[]>;
-    approveEvent(id: string, remarks?: string): Promise<{
+    approveEvent(id: string, req: any, remarks?: string): Promise<{
         id: string;
         title: string;
         description: string;
@@ -120,7 +120,7 @@ export declare class EventController {
         collegeId: string;
         clubId: string;
     }>;
-    rejectEvent(id: string, remarks?: string): Promise<{
+    rejectEvent(id: string, req: any, remarks?: string): Promise<{
         id: string;
         title: string;
         description: string;
@@ -224,10 +224,10 @@ export declare class EventController {
         user: {
             id: string;
             name: string;
+            walletAddress: string | null;
             email: string;
             studentId: string | null;
             role: import(".prisma/client").$Enums.Role;
-            walletAddress: string | null;
         };
     } & {
         id: string;
@@ -267,7 +267,7 @@ export declare class EventController {
         certificateUrl: string | null;
         registeredAt: Date;
     }>;
-    concludeEvent(id: string): Promise<{
+    concludeEvent(id: string, req: any): Promise<{
         id: string;
         title: string;
         description: string;

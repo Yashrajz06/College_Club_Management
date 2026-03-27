@@ -55,11 +55,11 @@ let EventController = class EventController {
     async getPending(req) {
         return this.eventService.getPendingApprovals(req.user.userId);
     }
-    async approveEvent(id, remarks) {
-        return this.eventService.approveEvent(id, remarks);
+    async approveEvent(id, req, remarks) {
+        return this.eventService.approveEvent(id, req.user.userId, remarks);
     }
-    async rejectEvent(id, remarks) {
-        return this.eventService.rejectEvent(id, remarks);
+    async rejectEvent(id, req, remarks) {
+        return this.eventService.rejectEvent(id, req.user.userId, remarks);
     }
     async getPublicEvents() {
         return this.eventService.getPublicEvents();
@@ -82,8 +82,8 @@ let EventController = class EventController {
     async markAttendanceByQR(body) {
         return this.eventService.markAttendanceByQR(body.qrCode);
     }
-    async concludeEvent(id) {
-        return this.eventService.concludeEvent(id);
+    async concludeEvent(id, req) {
+        return this.eventService.concludeEvent(id, req.user.userId);
     }
     async getPublishable(req) {
         return this.eventService.getPublishableEvents(req.user.userId);
@@ -136,18 +136,20 @@ __decorate([
     (0, common_1.Patch)(':id/approve'),
     (0, roles_decorator_1.Roles)(client_1.Role.COORDINATOR),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)('remarks')),
+    __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Body)('remarks')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], EventController.prototype, "approveEvent", null);
 __decorate([
     (0, common_1.Patch)(':id/reject'),
     (0, roles_decorator_1.Roles)(client_1.Role.COORDINATOR),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)('remarks')),
+    __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Body)('remarks')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], EventController.prototype, "rejectEvent", null);
 __decorate([
@@ -210,8 +212,9 @@ __decorate([
     (0, common_1.Patch)(':id/conclude'),
     (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], EventController.prototype, "concludeEvent", null);
 __decorate([

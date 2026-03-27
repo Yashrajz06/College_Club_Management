@@ -35,7 +35,7 @@ export class ClubService {
   }) {
     const collegeId = this.getCurrentCollegeIdOrThrow();
     const existing = await this.prisma.club.findFirst({
-      where: { name: data.name },
+      where: { collegeId, name: data.name },
       select: { id: true },
     });
     if (existing) {
@@ -44,10 +44,11 @@ export class ClubService {
 
     const [president, vpUser, coordinatorUser] = await Promise.all([
       this.prisma.user.findFirst({
-        where: { id: data.presidentId },
+        where: { id: data.presidentId, collegeId },
       }),
       this.prisma.user.findFirst({
         where: {
+          collegeId,
           OR: [
             { email: data.vpEmailOrId },
             { studentId: data.vpEmailOrId },
@@ -56,6 +57,7 @@ export class ClubService {
       }),
       this.prisma.user.findFirst({
         where: {
+          collegeId,
           OR: [
             { email: data.coordinatorEmailOrId },
             { studentId: data.coordinatorEmailOrId },
@@ -104,8 +106,9 @@ export class ClubService {
   }
 
   async getPendingRequests() {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.club.findMany({
-      where: { status: ClubStatus.PENDING },
+      where: { collegeId, status: ClubStatus.PENDING },
       include: {
         president: { select: { name: true, email: true } },
         coordinator: { select: { name: true, email: true } },
@@ -116,8 +119,9 @@ export class ClubService {
   }
 
   async approveClub(clubId: string, remarks?: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const club = await this.prisma.club.findFirst({
-      where: { id: clubId },
+      where: { id: clubId, collegeId },
       include: {
         president: {
           select: { id: true, walletAddress: true },
@@ -188,6 +192,14 @@ export class ClubService {
   }
 
   async rejectClub(clubId: string, remarks?: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
+    const existing = await this.prisma.club.findFirst({
+      where: { id: clubId, collegeId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Club not found');
+    }
     const club = await this.prisma.club.update({
       where: { id: clubId },
       data: {
@@ -210,8 +222,9 @@ export class ClubService {
   }
 
   async getActiveClubs() {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.club.findMany({
-      where: { status: ClubStatus.ACTIVE },
+      where: { collegeId, status: ClubStatus.ACTIVE },
       include: {
         president: { select: { id: true, name: true, email: true } },
         coordinator: { select: { id: true, name: true } },
@@ -221,8 +234,9 @@ export class ClubService {
   }
 
   async getClubById(clubId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const club = await this.prisma.club.findFirst({
-      where: { id: clubId },
+      where: { id: clubId, collegeId },
       include: {
         president: { select: { id: true, name: true, email: true } },
         vp: { select: { id: true, name: true, email: true } },
@@ -251,8 +265,9 @@ export class ClubService {
       vpEmailOrId?: string;
     },
   ) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const club = await this.prisma.club.findFirst({
-      where: { id: clubId },
+      where: { id: clubId, collegeId },
       include: {
         president: { select: { id: true } },
       },
@@ -260,7 +275,7 @@ export class ClubService {
     if (!club) throw new NotFoundException('Club not found');
 
     const requester = await this.prisma.user.findFirst({
-      where: { id: userId },
+      where: { id: userId, collegeId },
       select: { role: true },
     });
     const isOwner = club.presidentId === userId || club.vpId === userId;
@@ -277,6 +292,7 @@ export class ClubService {
     if (data.coordinatorEmailOrId) {
       const coordinator = await this.prisma.user.findFirst({
         where: {
+          collegeId,
           OR: [
             { email: data.coordinatorEmailOrId },
             { studentId: data.coordinatorEmailOrId },
@@ -292,6 +308,7 @@ export class ClubService {
     if (data.vpEmailOrId) {
       const vp = await this.prisma.user.findFirst({
         where: {
+          collegeId,
           OR: [
             { email: data.vpEmailOrId },
             { studentId: data.vpEmailOrId },
@@ -320,8 +337,9 @@ export class ClubService {
   }
 
   async deleteClub(clubId: string, userId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const club = await this.prisma.club.findFirst({
-      where: { id: clubId },
+      where: { id: clubId, collegeId },
       select: {
         id: true,
         presidentId: true,
@@ -331,7 +349,7 @@ export class ClubService {
     if (!club) throw new NotFoundException('Club not found');
 
     const requester = await this.prisma.user.findFirst({
-      where: { id: userId },
+      where: { id: userId, collegeId },
       select: { role: true },
     });
     const isOwner = club.presidentId === userId || club.vpId === userId;
@@ -359,7 +377,9 @@ export class ClubService {
   }
 
   async getAllClubsWithStats() {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.club.findMany({
+      where: { collegeId },
       include: {
         _count: { select: { members: true, events: true } },
         president: { select: { name: true, email: true } },
@@ -369,8 +389,9 @@ export class ClubService {
   }
 
   async getMyClub(userId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.club.findFirst({
-      where: { OR: [{ presidentId: userId }, { vpId: userId }] },
+      where: { collegeId, OR: [{ presidentId: userId }, { vpId: userId }] },
       select: {
         id: true,
         name: true,
@@ -384,8 +405,9 @@ export class ClubService {
   }
 
   async sendInvitation(clubId: string, senderId: string, emailOrId: string, customRole?: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const club = await this.prisma.club.findFirst({
-      where: { id: clubId },
+      where: { id: clubId, collegeId },
       select: {
         presidentId: true,
         vpId: true,
@@ -399,7 +421,10 @@ export class ClubService {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { OR: [{ email: emailOrId }, { studentId: emailOrId }] },
+      where: {
+        collegeId,
+        OR: [{ email: emailOrId }, { studentId: emailOrId }],
+      },
     });
     if (!user) throw new NotFoundException('Student not found');
 
@@ -414,16 +439,18 @@ export class ClubService {
   }
 
   async getInvitationsForUser(userId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.invitation.findMany({
-      where: { userId, status: 'PENDING' },
+      where: { collegeId, userId, status: 'PENDING' },
       include: { club: { select: { name: true, category: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async respondToInvitation(invitationId: string, userId: string, status: 'ACCEPTED' | 'REJECTED') {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     const invite = await this.prisma.invitation.findFirst({
-      where: { id: invitationId },
+      where: { id: invitationId, collegeId },
     });
     if (!invite || invite.userId !== userId) {
       throw new NotFoundException('Invitation not found or unauthorized');
@@ -447,8 +474,9 @@ export class ClubService {
   }
 
   async getMembers(clubId: string) {
+    const collegeId = this.getCurrentCollegeIdOrThrow();
     return this.prisma.clubMember.findMany({
-      where: { clubId },
+      where: { clubId, collegeId },
       include: { user: { select: { id: true, name: true, email: true, role: true } } },
       orderBy: { joinedAt: 'asc' },
     });
@@ -461,7 +489,7 @@ export class ClubService {
     customRole: string,
   ) {
     const existing = await tx.clubMember.findFirst({
-      where: { userId, clubId },
+      where: { userId, clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
     });
 
     if (!existing) {

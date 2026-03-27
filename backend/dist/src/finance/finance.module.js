@@ -19,7 +19,7 @@ exports.FinanceModule = FinanceModule = __decorate([
     (0, common_1.Module)({
         controllers: [finance_controller_1.FinanceController],
         providers: [finance_service_1.FinanceService, algorand_service_1.AlgorandService, token_gate_service_1.TokenGateService],
-        exports: [algorand_service_1.AlgorandService, token_gate_service_1.TokenGateService],
+        exports: [finance_service_1.FinanceService, algorand_service_1.AlgorandService, token_gate_service_1.TokenGateService],
     })
 ], FinanceModule);
 //# sourceMappingURL=finance.module.js.map

@@ -27,6 +27,7 @@ model College {
   contracts     CollegeContract[]
   blockchainActivities BlockchainActivity[]
   governanceProposals GovernanceProposal[]
+  governanceVotes     GovernanceVote[]
 }
 
 model CollegeConfig {
@@ -113,6 +114,7 @@ model User {
   assignedTasks    Task[]        @relation("AssignedTo")
   receivedInvitations Invitation[]
   governanceProposals GovernanceProposal[]
+  governanceVotes     GovernanceVote[]
 
   @@index([collegeId])
 }
@@ -383,12 +385,16 @@ model Task {
 }
 
 model GovernanceProposal {
-  id          String                   @id @default(uuid())
-  title       String
-  description String
-  status      GovernanceProposalStatus @default(DRAFT)
-  createdAt   DateTime                 @default(now())
-  updatedAt   DateTime                 @updatedAt
+  id            String                   @id @default(uuid())
+  title         String
+  description   String
+  status        GovernanceProposalStatus @default(DRAFT)
+  spendAmount   Float?                   // Amount to release from treasury if EXECUTED
+  deadline      DateTime?                // Voting closes after this
+  forWeight     Float                    @default(0)
+  againstWeight Float                    @default(0)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   collegeId   String
   college     College                  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
@@ -400,8 +406,29 @@ model GovernanceProposal {
   proposerId  String
   proposer    User                     @relation(fields: [proposerId], references: [id], onDelete: Cascade)
 
+  votes       GovernanceVote[]
+
   @@index([collegeId])
   @@index([eventId])
+}
+
+model GovernanceVote {
+  id          String              @id @default(uuid())
+  voteFor     Boolean
+  weight      Float               @default(1)
+  txId        String?             // On-chain vote transaction ID
+  createdAt   DateTime            @default(now())
+
+  proposalId  String
+  proposal    GovernanceProposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  voterId     String
+  voter       User                @relation(fields: [voterId], references: [id], onDelete: Cascade)
+
+  collegeId   String
+  college     College             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, voterId])
+  @@index([collegeId])
 }
 
 enum InvitationStatus {

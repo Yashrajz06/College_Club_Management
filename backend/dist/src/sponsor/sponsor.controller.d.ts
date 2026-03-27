@@ -5,28 +5,28 @@ export declare class SponsorController {
     constructor(sponsorService: SponsorService);
     createSponsor(req: any, body: any): Promise<{
         id: string;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         createdAt: Date;
         updatedAt: Date;
         collegeId: string;
-        clubId: string;
-        name: string;
-        organization: string;
         email: string | null;
+        clubId: string;
+        organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;
     }>;
     updateSponsorStatus(id: string, req: any, status: SponsorStatus): Promise<{
         id: string;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         createdAt: Date;
         updatedAt: Date;
         collegeId: string;
-        clubId: string;
-        name: string;
-        organization: string;
         email: string | null;
+        clubId: string;
+        organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;
@@ -37,14 +37,14 @@ export declare class SponsorController {
     }>;
     deleteSponsor(id: string, req: any): Promise<{
         id: string;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         createdAt: Date;
         updatedAt: Date;
         collegeId: string;
-        clubId: string;
-        name: string;
-        organization: string;
         email: string | null;
+        clubId: string;
+        organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;
@@ -56,14 +56,14 @@ export declare class SponsorController {
         }[];
     } & {
         id: string;
+        name: string;
         status: import(".prisma/client").$Enums.SponsorStatus;
         createdAt: Date;
         updatedAt: Date;
         collegeId: string;
-        clubId: string;
-        name: string;
-        organization: string;
         email: string | null;
+        clubId: string;
+        organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;

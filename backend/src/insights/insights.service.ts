@@ -17,6 +17,38 @@ type SyncEntityType =
   | 'governance'
   | 'poster';
 
+type DashboardClub = {
+  id: string;
+  status: ClubStatus | string;
+  category?: string | null;
+  prizePoolBalance?: number | null;
+};
+
+type DashboardUser = {
+  id: string;
+  role: string;
+};
+
+type DashboardEvent = {
+  id: string;
+  status: EventStatus | string;
+  budget?: number | null;
+  date?: string | Date | null;
+  clubId: string;
+};
+
+type DashboardSponsor = {
+  id: string;
+  status: SponsorStatus | string;
+};
+
+type DashboardRegistration = {
+  id: string;
+  attended?: boolean | null;
+  isWaitlisted?: boolean | null;
+  eventId: string;
+};
+
 @Injectable()
 export class InsightsService {
   private readonly logger = new Logger(InsightsService.name);
@@ -123,11 +155,13 @@ export class InsightsService {
         return null;
       }
 
-      const clubs = clubsRes.data ?? [];
-      const users = usersRes.data ?? [];
-      const events = eventsRes.data ?? [];
-      const sponsors = sponsorsRes.data ?? [];
-      const registrations = registrationsRes.data ?? [];
+      const clubs = this.asRows<DashboardClub>(clubsRes.data);
+      const users = this.asRows<DashboardUser>(usersRes.data);
+      const events = this.asRows<DashboardEvent>(eventsRes.data);
+      const sponsors = this.asRows<DashboardSponsor>(sponsorsRes.data);
+      const registrations = this.asRows<DashboardRegistration>(
+        registrationsRes.data,
+      );
 
       return this.buildDashboardStats({
         clubs,
@@ -191,11 +225,11 @@ export class InsightsService {
   }
 
   private buildDashboardStats(data: {
-    clubs: Array<{ id: string; status: ClubStatus | string; category?: string | null; prizePoolBalance?: number | null }>;
-    users: Array<{ id: string; role: string }>;
-    events: Array<{ id: string; status: EventStatus | string; budget?: number | null; date?: string | Date | null; clubId: string }>;
-    sponsors: Array<{ id: string; status: SponsorStatus | string }>;
-    registrations: Array<{ id: string; attended?: boolean | null; isWaitlisted?: boolean | null; eventId: string }>;
+    clubs: DashboardClub[];
+    users: DashboardUser[];
+    events: DashboardEvent[];
+    sponsors: DashboardSponsor[];
+    registrations: DashboardRegistration[];
   }) {
     const activeClubs = data.clubs.filter((club) => club.status === ClubStatus.ACTIVE);
     const approvedEvents = data.events.filter(
@@ -351,5 +385,9 @@ export class InsightsService {
       recentAnalytics: [],
       blockchain,
     };
+  }
+
+  private asRows<T>(value: unknown): T[] {
+    return Array.isArray(value) ? (value as T[]) : [];
   }
 }

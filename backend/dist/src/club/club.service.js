@@ -30,7 +30,7 @@ let ClubService = class ClubService {
     async createClubRequest(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
         const existing = await this.prisma.club.findFirst({
-            where: { name: data.name },
+            where: { collegeId, name: data.name },
             select: { id: true },
         });
         if (existing) {
@@ -38,10 +38,11 @@ let ClubService = class ClubService {
         }
         const [president, vpUser, coordinatorUser] = await Promise.all([
             this.prisma.user.findFirst({
-                where: { id: data.presidentId },
+                where: { id: data.presidentId, collegeId },
             }),
             this.prisma.user.findFirst({
                 where: {
+                    collegeId,
                     OR: [
                         { email: data.vpEmailOrId },
                         { studentId: data.vpEmailOrId },
@@ -50,6 +51,7 @@ let ClubService = class ClubService {
             }),
             this.prisma.user.findFirst({
                 where: {
+                    collegeId,
                     OR: [
                         { email: data.coordinatorEmailOrId },
                         { studentId: data.coordinatorEmailOrId },
@@ -95,8 +97,9 @@ let ClubService = class ClubService {
         return club;
     }
     async getPendingRequests() {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.club.findMany({
-            where: { status: client_1.ClubStatus.PENDING },
+            where: { collegeId, status: client_1.ClubStatus.PENDING },
             include: {
                 president: { select: { name: true, email: true } },
                 coordinator: { select: { name: true, email: true } },
@@ -106,8 +109,9 @@ let ClubService = class ClubService {
         });
     }
     async approveClub(clubId, remarks) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             include: {
                 president: {
                     select: { id: true, walletAddress: true },
@@ -169,6 +173,14 @@ let ClubService = class ClubService {
         return updated;
     }
     async rejectClub(clubId, remarks) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
+        const existing = await this.prisma.club.findFirst({
+            where: { id: clubId, collegeId },
+            select: { id: true },
+        });
+        if (!existing) {
+            throw new common_1.NotFoundException('Club not found');
+        }
         const club = await this.prisma.club.update({
             where: { id: clubId },
             data: {
@@ -188,8 +200,9 @@ let ClubService = class ClubService {
         return club;
     }
     async getActiveClubs() {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.club.findMany({
-            where: { status: client_1.ClubStatus.ACTIVE },
+            where: { collegeId, status: client_1.ClubStatus.ACTIVE },
             include: {
                 president: { select: { id: true, name: true, email: true } },
                 coordinator: { select: { id: true, name: true } },
@@ -198,8 +211,9 @@ let ClubService = class ClubService {
         });
     }
     async getClubById(clubId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             include: {
                 president: { select: { id: true, name: true, email: true } },
                 vp: { select: { id: true, name: true, email: true } },
@@ -215,8 +229,9 @@ let ClubService = class ClubService {
         return club;
     }
     async updateClub(clubId, userId, data) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             include: {
                 president: { select: { id: true } },
             },
@@ -224,7 +239,7 @@ let ClubService = class ClubService {
         if (!club)
             throw new common_1.NotFoundException('Club not found');
         const requester = await this.prisma.user.findFirst({
-            where: { id: userId },
+            where: { id: userId, collegeId },
             select: { role: true },
         });
         const isOwner = club.presidentId === userId || club.vpId === userId;
@@ -242,6 +257,7 @@ let ClubService = class ClubService {
         if (data.coordinatorEmailOrId) {
             const coordinator = await this.prisma.user.findFirst({
                 where: {
+                    collegeId,
                     OR: [
                         { email: data.coordinatorEmailOrId },
                         { studentId: data.coordinatorEmailOrId },
@@ -256,6 +272,7 @@ let ClubService = class ClubService {
         if (data.vpEmailOrId) {
             const vp = await this.prisma.user.findFirst({
                 where: {
+                    collegeId,
                     OR: [
                         { email: data.vpEmailOrId },
                         { studentId: data.vpEmailOrId },
@@ -280,8 +297,9 @@ let ClubService = class ClubService {
         return updated;
     }
     async deleteClub(clubId, userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             select: {
                 id: true,
                 presidentId: true,
@@ -291,7 +309,7 @@ let ClubService = class ClubService {
         if (!club)
             throw new common_1.NotFoundException('Club not found');
         const requester = await this.prisma.user.findFirst({
-            where: { id: userId },
+            where: { id: userId, collegeId },
             select: { role: true },
         });
         const isOwner = club.presidentId === userId || club.vpId === userId;
@@ -314,7 +332,9 @@ let ClubService = class ClubService {
         return this.insights.getDashboardStats();
     }
     async getAllClubsWithStats() {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.club.findMany({
+            where: { collegeId },
             include: {
                 _count: { select: { members: true, events: true } },
                 president: { select: { name: true, email: true } },
@@ -323,8 +343,9 @@ let ClubService = class ClubService {
         });
     }
     async getMyClub(userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.club.findFirst({
-            where: { OR: [{ presidentId: userId }, { vpId: userId }] },
+            where: { collegeId, OR: [{ presidentId: userId }, { vpId: userId }] },
             select: {
                 id: true,
                 name: true,
@@ -337,8 +358,9 @@ let ClubService = class ClubService {
         });
     }
     async sendInvitation(clubId, senderId, emailOrId, customRole) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             select: {
                 presidentId: true,
                 vpId: true,
@@ -351,7 +373,10 @@ let ClubService = class ClubService {
             throw new common_1.ForbiddenException('Not authorized to invite members to this club');
         }
         const user = await this.prisma.user.findFirst({
-            where: { OR: [{ email: emailOrId }, { studentId: emailOrId }] },
+            where: {
+                collegeId,
+                OR: [{ email: emailOrId }, { studentId: emailOrId }],
+            },
         });
         if (!user)
             throw new common_1.NotFoundException('Student not found');
@@ -365,15 +390,17 @@ let ClubService = class ClubService {
         });
     }
     async getInvitationsForUser(userId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.invitation.findMany({
-            where: { userId, status: 'PENDING' },
+            where: { collegeId, userId, status: 'PENDING' },
             include: { club: { select: { name: true, category: true } } },
             orderBy: { createdAt: 'desc' },
         });
     }
     async respondToInvitation(invitationId, userId, status) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const invite = await this.prisma.invitation.findFirst({
-            where: { id: invitationId },
+            where: { id: invitationId, collegeId },
         });
         if (!invite || invite.userId !== userId) {
             throw new common_1.NotFoundException('Invitation not found or unauthorized');
@@ -394,15 +421,16 @@ let ClubService = class ClubService {
         });
     }
     async getMembers(clubId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.clubMember.findMany({
-            where: { clubId },
+            where: { clubId, collegeId },
             include: { user: { select: { id: true, name: true, email: true, role: true } } },
             orderBy: { joinedAt: 'asc' },
         });
     }
     async ensureMembership(tx, clubId, userId, customRole) {
         const existing = await tx.clubMember.findFirst({
-            where: { userId, clubId },
+            where: { userId, clubId, collegeId: this.getCurrentCollegeIdOrThrow() },
         });
         if (!existing) {
             await tx.clubMember.create({

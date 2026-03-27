@@ -106,8 +106,9 @@ let SponsorService = class SponsorService {
         return draft;
     }
     async getSponsorsForClub(clubId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         return this.prisma.sponsor.findMany({
-            where: { clubId },
+            where: { clubId, collegeId },
             orderBy: { createdAt: 'desc' },
             include: {
                 transactions: { select: { amount: true, date: true } },
@@ -136,8 +137,9 @@ let SponsorService = class SponsorService {
         return deleted;
     }
     async assertClubOwnership(clubId, requesterId) {
+        const collegeId = this.getCurrentCollegeIdOrThrow();
         const club = await this.prisma.club.findFirst({
-            where: { id: clubId },
+            where: { id: clubId, collegeId },
             select: {
                 presidentId: true,
                 vpId: true,

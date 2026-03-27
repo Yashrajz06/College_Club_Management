@@ -27,6 +27,7 @@ import { useEffect } from 'react';
 import { reconnectPeraWallet } from './lib/pera';
 import { CollegeSwitcher } from './CollegeSwitcher';
 import Profile from './Profile';
+import Governance from './Governance';
 
 function App() {
   const dispatch = useDispatch();
@@ -60,6 +61,9 @@ function App() {
                   </Link>
                   <Link to="/create-club" className="text-sm font-semibold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors">
                     + Start a Club
+                  </Link>
+                  <Link to="/governance" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
+                    Governance
                   </Link>
                   {user?.role === 'ADMIN' && (
                     <Link to="/admin" className="text-sm font-medium text-blue-600 hover:text-blue-800">Admin</Link>
@@ -141,6 +145,7 @@ function App() {
             <Route path="/publish-events" element={<PublishEvents />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/governance" element={<Governance />} />
           </Routes>
         </main>
 

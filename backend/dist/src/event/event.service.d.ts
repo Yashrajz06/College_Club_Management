@@ -128,7 +128,7 @@ export declare class EventService {
         collegeId: string;
         clubId: string;
     })[]>;
-    approveEvent(eventId: string, remarks?: string): Promise<{
+    approveEvent(eventId: string, coordinatorId: string, remarks?: string): Promise<{
         id: string;
         title: string;
         description: string;
@@ -150,7 +150,7 @@ export declare class EventService {
         collegeId: string;
         clubId: string;
     }>;
-    rejectEvent(eventId: string, remarks?: string): Promise<{
+    rejectEvent(eventId: string, coordinatorId: string, remarks?: string): Promise<{
         id: string;
         title: string;
         description: string;
@@ -220,7 +220,7 @@ export declare class EventService {
         collegeId: string;
         clubId: string;
     }>;
-    concludeEvent(eventId: string): Promise<{
+    concludeEvent(eventId: string, requesterId: string): Promise<{
         id: string;
         title: string;
         description: string;
@@ -369,10 +369,10 @@ export declare class EventService {
         user: {
             id: string;
             name: string;
+            walletAddress: string | null;
             email: string;
             studentId: string | null;
             role: import(".prisma/client").$Enums.Role;
-            walletAddress: string | null;
         };
     } & {
         id: string;
@@ -408,5 +408,8 @@ export declare class EventService {
         registeredAt: Date;
     }>;
     private getManagedEvent;
+    private findEventOrThrow;
+    private findRegistrationOrThrow;
+    private getCoordinatorApprovalEventOrThrow;
     private getCurrentCollegeIdOrThrow;
 }

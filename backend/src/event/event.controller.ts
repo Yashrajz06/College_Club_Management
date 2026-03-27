@@ -67,14 +67,22 @@ export class EventController {
 
   @Patch(':id/approve')
   @Roles(Role.COORDINATOR)
-  async approveEvent(@Param('id') id: string, @Body('remarks') remarks?: string) {
-    return this.eventService.approveEvent(id, remarks);
+  async approveEvent(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('remarks') remarks?: string,
+  ) {
+    return this.eventService.approveEvent(id, req.user.userId, remarks);
   }
 
   @Patch(':id/reject')
   @Roles(Role.COORDINATOR)
-  async rejectEvent(@Param('id') id: string, @Body('remarks') remarks?: string) {
-    return this.eventService.rejectEvent(id, remarks);
+  async rejectEvent(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('remarks') remarks?: string,
+  ) {
+    return this.eventService.rejectEvent(id, req.user.userId, remarks);
   }
 
   @Public()
@@ -122,8 +130,8 @@ export class EventController {
 
   @Patch(':id/conclude')
   @Roles(Role.PRESIDENT, Role.VP)
-  async concludeEvent(@Param('id') id: string) {
-    return this.eventService.concludeEvent(id);
+  async concludeEvent(@Param('id') id: string, @Request() req: any) {
+    return this.eventService.concludeEvent(id, req.user.userId);
   }
 
   @Get('publishable')

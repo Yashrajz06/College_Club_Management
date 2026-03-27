@@ -62,8 +62,8 @@ export declare class TaskService {
     }>;
     getTasksForClub(clubId: string, requesterId: string): Promise<({
         assignee: {
-            email: string;
             name: string;
+            email: string;
         };
     } & {
         id: string;

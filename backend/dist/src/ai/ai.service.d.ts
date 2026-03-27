@@ -104,24 +104,24 @@ export declare class AiService {
         };
         clubs: {
             id: string;
+            name: string;
             category: string;
             status: import(".prisma/client").$Enums.ClubStatus;
-            name: string;
             prizePoolBalance: number;
         }[];
         recentEvents: {
             id: string;
+            status: import(".prisma/client").$Enums.EventStatus;
+            clubId: string;
             title: string;
             date: Date;
             venue: string;
-            status: import(".prisma/client").$Enums.EventStatus;
             posterImageUrl: string | null;
-            clubId: string;
         }[];
         sponsors: {
             id: string;
-            status: import(".prisma/client").$Enums.SponsorStatus;
             name: string;
+            status: import(".prisma/client").$Enums.SponsorStatus;
             organization: string;
             lastContactedAt: Date | null;
         }[];

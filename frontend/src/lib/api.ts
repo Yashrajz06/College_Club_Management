@@ -1,24 +1,44 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+export const buildApiHeaders = (headers: HeadersInit = {}) => {
   const token = localStorage.getItem('token');
   const collegeId = localStorage.getItem('collegeId');
 
-  const headers = {
+  return {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...(collegeId && { 'x-college-id': collegeId }),
-    ...options.headers,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(collegeId ? { 'x-college-id': collegeId } : {}),
+    ...headers,
   };
+};
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+export const apiRequest = async (
+  endpoint: string,
+  options: RequestInit = {},
+) => {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers,
+    headers: buildApiHeaders(options.headers),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'API request failed');
+    throw new Error(
+      Array.isArray(errorData.message)
+        ? errorData.message.join(', ')
+        : errorData.message || 'API request failed',
+    );
+  }
+
+  return response;
+};
+
+export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+  const response = await apiRequest(endpoint, options);
+
+  if (response.status === 204) {
+    return null;
   }
 
   return response.json();
