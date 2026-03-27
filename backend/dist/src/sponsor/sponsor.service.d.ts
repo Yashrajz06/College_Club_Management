@@ -17,28 +17,28 @@ export declare class SponsorService {
         clubId: string;
         requesterId: string;
     }): Promise<{
-        collegeId: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        collegeId: string;
+        email: string | null;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
-        email: string | null;
         organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;
     }>;
     updateStatus(sponsorId: string, status: SponsorStatus, requesterId: string): Promise<{
-        collegeId: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        collegeId: string;
+        email: string | null;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
-        email: string | null;
         organization: string;
         phone: string | null;
         outreachDraft: string | null;
@@ -50,32 +50,32 @@ export declare class SponsorService {
     }>;
     getSponsorsForClub(clubId: string): Promise<({
         transactions: {
-            amount: number;
             date: Date;
+            amount: number;
         }[];
     } & {
-        collegeId: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        collegeId: string;
+        email: string | null;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
-        email: string | null;
         organization: string;
         phone: string | null;
         outreachDraft: string | null;
         lastContactedAt: Date | null;
     })[]>;
     deleteSponsor(sponsorId: string, requesterId: string): Promise<{
-        collegeId: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        collegeId: string;
+        email: string | null;
         status: import(".prisma/client").$Enums.SponsorStatus;
         clubId: string;
-        email: string | null;
         organization: string;
         phone: string | null;
         outreachDraft: string | null;

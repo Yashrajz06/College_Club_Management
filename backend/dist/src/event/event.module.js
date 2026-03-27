@@ -14,12 +14,13 @@ const ai_module_1 = require("../ai/ai.module");
 const finance_module_1 = require("../finance/finance.module");
 const insights_module_1 = require("../insights/insights.module");
 const mail_module_1 = require("../mail/mail.module");
+const token_module_1 = require("../token/token.module");
 let EventModule = class EventModule {
 };
 exports.EventModule = EventModule;
 exports.EventModule = EventModule = __decorate([
     (0, common_1.Module)({
-        imports: [ai_module_1.AiModule, mail_module_1.MailModule, finance_module_1.FinanceModule, insights_module_1.InsightsModule],
+        imports: [(0, common_1.forwardRef)(() => finance_module_1.FinanceModule), insights_module_1.InsightsModule, mail_module_1.MailModule, ai_module_1.AiModule, (0, common_1.forwardRef)(() => token_module_1.TokenModule)],
         controllers: [event_controller_1.EventController],
         providers: [event_service_1.EventService],
         exports: [event_service_1.EventService],

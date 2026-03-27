@@ -16,9 +16,11 @@ exports.AiController = void 0;
 const common_1 = require("@nestjs/common");
 const ai_service_1 = require("./ai.service");
 const passport_1 = require("@nestjs/passport");
-const roles_guard_1 = require("../auth/roles.guard");
-const roles_decorator_1 = require("../auth/roles.decorator");
+const roles_guard_1 = require("../auth/guards/roles.guard");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
+const token_gate_decorator_1 = require("../auth/decorators/token-gate.decorator");
 const client_1 = require("@prisma/client");
+const common_2 = require("@nestjs/common");
 let AiController = class AiController {
     aiService;
     constructor(aiService) {
@@ -35,6 +37,12 @@ let AiController = class AiController {
     }
     async getAssistantContext() {
         return this.aiService.getAssistantContext();
+    }
+    async chatWithAssistant(req, prompt, history) {
+        return this.aiService.chatWithAssistant(req.user.userId, prompt, history);
+    }
+    async executeAction(req, body) {
+        return this.aiService.executeSuggestedAction(req.user.userId, body.type, body.payload);
     }
 };
 exports.AiController = AiController;
@@ -72,9 +80,29 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], AiController.prototype, "getAssistantContext", null);
+__decorate([
+    (0, common_2.Post)('chat'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP, client_1.Role.COORDINATOR, client_1.Role.ADMIN),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_2.Body)('prompt')),
+    __param(2, (0, common_2.Body)('history')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Array]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "chatWithAssistant", null);
+__decorate([
+    (0, common_2.Post)('execute-action'),
+    (0, roles_decorator_1.Roles)(client_1.Role.PRESIDENT, client_1.Role.VP, client_1.Role.COORDINATOR, client_1.Role.ADMIN),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_2.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "executeAction", null);
 exports.AiController = AiController = __decorate([
     (0, common_1.Controller)('ai'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
+    (0, token_gate_decorator_1.TokenGate)(client_1.BlockchainActionType.MINT),
     __metadata("design:paramtypes", [ai_service_1.AiService])
 ], AiController);
 //# sourceMappingURL=ai.controller.js.map

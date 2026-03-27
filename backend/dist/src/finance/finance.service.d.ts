@@ -4,6 +4,7 @@ import { AlgorandService } from './algorand.service';
 import { TokenGateService } from './token-gate.service';
 import { PrepareWalletTransactionDto } from './dto/prepare-wallet-transaction.dto';
 import { SubmitWalletTransactionDto } from './dto/submit-wallet-transaction.dto';
+import { TokenService } from '../token/token.service';
 interface LedgerTransactionInput {
     amount: number;
     type: TransactionType;
@@ -18,7 +19,8 @@ export declare class FinanceService {
     private readonly prisma;
     private readonly algorand;
     private readonly tokenGate;
-    constructor(prisma: PrismaService, algorand: AlgorandService, tokenGate: TokenGateService);
+    private readonly tokenService;
+    constructor(prisma: PrismaService, algorand: AlgorandService, tokenGate: TokenGateService, tokenService: TokenService);
     logTransaction(data: LedgerTransactionInput): Promise<{
         event: {
             title: string;
@@ -28,19 +30,19 @@ export declare class FinanceService {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     prepareWalletTransaction(data: PrepareWalletTransactionDto): Promise<{
         network: "testnet" | "localnet";
@@ -60,19 +62,19 @@ export declare class FinanceService {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     }>;
     getClubTransactions(clubId: string): Promise<({
         event: {
@@ -83,19 +85,19 @@ export declare class FinanceService {
             organization: string;
         } | null;
     } & {
-        collegeId: string;
         id: string;
-        type: import(".prisma/client").$Enums.TransactionType;
+        collegeId: string;
         walletAddress: string | null;
-        amount: number;
         description: string;
-        date: Date;
         clubId: string;
-        eventId: string | null;
+        date: Date;
         txnHash: string | null;
         blockchainActivityId: string | null;
-        sponsorId: string | null;
         treasurySpendRequestId: string | null;
+        amount: number;
+        type: import(".prisma/client").$Enums.TransactionType;
+        eventId: string | null;
+        sponsorId: string | null;
     })[]>;
     getClubBalance(clubId: string): Promise<number>;
     private persistConfirmedLedgerTransaction;

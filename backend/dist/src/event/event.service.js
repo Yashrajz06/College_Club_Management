@@ -18,6 +18,8 @@ const algorand_service_1 = require("../finance/algorand.service");
 const insights_service_1 = require("../insights/insights.service");
 const mail_service_1 = require("../mail/mail.service");
 const prisma_service_1 = require("../prisma/prisma.service");
+const token_service_1 = require("../token/token.service");
+const client_2 = require("@prisma/client");
 let EventService = class EventService {
     prisma;
     cls;
@@ -25,13 +27,15 @@ let EventService = class EventService {
     mailService;
     algorand;
     insights;
-    constructor(prisma, cls, aiService, mailService, algorand, insights) {
+    tokenService;
+    constructor(prisma, cls, aiService, mailService, algorand, insights, tokenService) {
         this.prisma = prisma;
         this.cls = cls;
         this.aiService = aiService;
         this.mailService = mailService;
         this.algorand = algorand;
         this.insights = insights;
+        this.tokenService = tokenService;
     }
     async createEvent(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
@@ -353,17 +357,14 @@ let EventService = class EventService {
                     .toUpperCase()}`,
             },
         });
-        await this.algorand.triggerLifecycleAction({
-            action: client_1.BlockchainActionType.MINT,
-            contractType: client_1.CollegeContractType.ENTRY_TOKEN,
-            entityId: registration.id,
-            walletAddress: user.walletAddress,
+        await this.tokenService.mintEntryToken({
+            userId,
+            actionType: client_2.TokenActionType.REGISTER,
+            walletAddress: user.walletAddress ?? undefined,
+            eventId,
             metadata: {
                 reason: 'event_registration',
-                eventId,
-                userId,
                 registrationId: registration.id,
-                targetWalletAddress: user.walletAddress,
             },
         });
         await this.insights.recordSyncEvent({
@@ -550,6 +551,7 @@ exports.EventService = EventService = __decorate([
         ai_service_1.AiService,
         mail_service_1.MailService,
         algorand_service_1.AlgorandService,
-        insights_service_1.InsightsService])
+        insights_service_1.InsightsService,
+        token_service_1.TokenService])
 ], EventService);
 //# sourceMappingURL=event.service.js.map

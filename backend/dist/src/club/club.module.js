@@ -12,12 +12,13 @@ const club_controller_1 = require("./club.controller");
 const club_service_1 = require("./club.service");
 const finance_module_1 = require("../finance/finance.module");
 const insights_module_1 = require("../insights/insights.module");
+const token_module_1 = require("../token/token.module");
 let ClubModule = class ClubModule {
 };
 exports.ClubModule = ClubModule;
 exports.ClubModule = ClubModule = __decorate([
     (0, common_1.Module)({
-        imports: [finance_module_1.FinanceModule, insights_module_1.InsightsModule],
+        imports: [(0, common_1.forwardRef)(() => finance_module_1.FinanceModule), insights_module_1.InsightsModule, (0, common_1.forwardRef)(() => token_module_1.TokenModule)],
         controllers: [club_controller_1.ClubController],
         providers: [club_service_1.ClubService],
         exports: [club_service_1.ClubService],

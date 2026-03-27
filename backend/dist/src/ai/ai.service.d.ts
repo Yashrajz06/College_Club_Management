@@ -1,11 +1,15 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { InsightsService } from '../insights/insights.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { GovernanceService } from '../governance/governance.service';
+import { AlgorandService } from '../finance/algorand.service';
 export declare class AiService {
     private prisma;
     private readonly insights;
     private readonly supabase;
-    constructor(prisma: PrismaService, insights: InsightsService, supabase: SupabaseService);
+    private readonly governance;
+    private readonly algorand;
+    constructor(prisma: PrismaService, insights: InsightsService, supabase: SupabaseService, governance: GovernanceService, algorand: AlgorandService);
     draftSponsorMessage(eventId: string, sponsorId: string): Promise<{
         subject: string;
         message: string;
@@ -47,9 +51,35 @@ export declare class AiService {
     }>;
     checkOllamaHealth(): Promise<boolean>;
     getAssistantContext(): Promise<{
+        tokenMetrics: {
+            totalActiveTokens: number;
+            distributionByAction: {
+                action: import(".prisma/client").$Enums.TokenActionType;
+                count: number;
+            }[];
+            topHolders: {
+                userId: string;
+                name: string;
+                walletAddress: string | null | undefined;
+                count: number;
+            }[];
+        };
         source: string;
         generatedAt: string;
         dashboard: {
+            tokenMetrics: {
+                totalActiveTokens: number;
+                distributionByAction: {
+                    action: import(".prisma/client").$Enums.TokenActionType;
+                    count: number;
+                }[];
+                topHolders: {
+                    userId: string;
+                    name: string;
+                    walletAddress: string | null | undefined;
+                    count: number;
+                }[];
+            };
             clubCount: number;
             memberCount: number;
             eventCount: number;
@@ -83,9 +113,35 @@ export declare class AiService {
         }[];
         blockchain: any[];
     } | {
+        tokenMetrics: {
+            totalActiveTokens: number;
+            distributionByAction: {
+                action: import(".prisma/client").$Enums.TokenActionType;
+                count: number;
+            }[];
+            topHolders: {
+                userId: string;
+                name: string;
+                walletAddress: string | null | undefined;
+                count: number;
+            }[];
+        };
         source: string;
         generatedAt: string;
         dashboard: {
+            tokenMetrics: {
+                totalActiveTokens: number;
+                distributionByAction: {
+                    action: import(".prisma/client").$Enums.TokenActionType;
+                    count: number;
+                }[];
+                topHolders: {
+                    userId: string;
+                    name: string;
+                    walletAddress: string | null | undefined;
+                    count: number;
+                }[];
+            };
             clubCount: number;
             memberCount: number;
             eventCount: number;
@@ -105,18 +161,18 @@ export declare class AiService {
         clubs: {
             id: string;
             name: string;
-            status: import(".prisma/client").$Enums.ClubStatus;
             category: string;
+            status: import(".prisma/client").$Enums.ClubStatus;
             prizePoolBalance: number;
         }[];
         recentEvents: {
             id: string;
             status: import(".prisma/client").$Enums.EventStatus;
+            clubId: string;
             title: string;
             date: Date;
             venue: string;
             posterImageUrl: string | null;
-            clubId: string;
         }[];
         sponsors: {
             id: string;
@@ -125,8 +181,53 @@ export declare class AiService {
             organization: string;
             lastContactedAt: Date | null;
         }[];
+        treasuryContext: {
+            id: string;
+            status: import(".prisma/client").$Enums.TreasurySpendRequestStatus;
+            title: string;
+            amount: number;
+        }[];
         recentAnalytics: never[];
         blockchain: any[];
+    }>;
+    chatWithAssistant(userId: string, prompt: string, history?: {
+        role: string;
+        content: string;
+    }[]): Promise<{
+        reply: string;
+        suggestedAction: any;
+    }>;
+    executeSuggestedAction(userId: string, type: 'CREATE_PROPOSAL' | 'MINT_TOKEN', payload: any): Promise<{
+        status: import(".prisma/client").$Enums.BlockchainSyncStatus;
+        txId: string;
+        activity: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            collegeId: string;
+            walletAddress: string | null;
+            status: import(".prisma/client").$Enums.BlockchainSyncStatus;
+            action: import(".prisma/client").$Enums.BlockchainActionType;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            note: string | null;
+            txId: string;
+            contractId: string | null;
+        };
+    } | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        collegeId: string;
+        description: string;
+        status: import(".prisma/client").$Enums.GovernanceProposalStatus;
+        clubId: string;
+        title: string;
+        eventId: string;
+        deadline: Date | null;
+        spendAmount: number | null;
+        forWeight: number;
+        againstWeight: number;
+        proposerId: string;
     }>;
     private persistPosterAsset;
 }

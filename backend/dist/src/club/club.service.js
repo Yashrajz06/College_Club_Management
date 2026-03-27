@@ -16,16 +16,20 @@ const nestjs_cls_1 = require("nestjs-cls");
 const algorand_service_1 = require("../finance/algorand.service");
 const insights_service_1 = require("../insights/insights.service");
 const prisma_service_1 = require("../prisma/prisma.service");
+const token_service_1 = require("../token/token.service");
+const client_2 = require("@prisma/client");
 let ClubService = class ClubService {
     prisma;
     cls;
     algorand;
     insights;
-    constructor(prisma, cls, algorand, insights) {
+    tokenService;
+    constructor(prisma, cls, algorand, insights, tokenService) {
         this.prisma = prisma;
         this.cls = cls;
         this.algorand = algorand;
         this.insights = insights;
+        this.tokenService = tokenService;
     }
     async createClubRequest(data) {
         const collegeId = this.getCurrentCollegeIdOrThrow();
@@ -149,16 +153,13 @@ let ClubService = class ClubService {
             await this.ensureMembership(tx, clubId, club.vpId, 'Vice President');
             return approvedClub;
         });
-        await this.algorand.triggerLifecycleAction({
-            action: client_1.BlockchainActionType.MINT,
-            contractType: client_1.CollegeContractType.ENTRY_TOKEN,
-            entityId: updated.id,
-            walletAddress: club.president?.walletAddress,
+        await this.tokenService.mintEntryToken({
+            userId: club.presidentId,
+            actionType: client_2.TokenActionType.JOIN,
+            walletAddress: club.president?.walletAddress ?? undefined,
+            clubId: updated.id,
             metadata: {
-                reason: 'club_approval',
-                clubId: updated.id,
-                userId: club.presidentId,
-                targetWalletAddress: club.president?.walletAddress,
+                reason: 'club_approval_founder',
             },
         });
         await this.insights.recordSyncEvent({
@@ -414,6 +415,16 @@ let ClubService = class ClubService {
                     customRole: invite.customRole,
                 },
             });
+            const member = await this.prisma.user.findFirst({
+                where: { id: invite.userId, collegeId },
+                select: { walletAddress: true },
+            });
+            await this.tokenService.mintEntryToken({
+                userId: invite.userId,
+                actionType: client_2.TokenActionType.JOIN,
+                walletAddress: member?.walletAddress ?? undefined,
+                clubId: invite.clubId,
+            });
         }
         return this.prisma.invitation.update({
             where: { id: invitationId },
@@ -462,6 +473,7 @@ exports.ClubService = ClubService = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         nestjs_cls_1.ClsService,
         algorand_service_1.AlgorandService,
-        insights_service_1.InsightsService])
+        insights_service_1.InsightsService,
+        token_service_1.TokenService])
 ], ClubService);
 //# sourceMappingURL=club.service.js.map

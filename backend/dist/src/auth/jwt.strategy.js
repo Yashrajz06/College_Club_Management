@@ -30,13 +30,13 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
     async validate(payload) {
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
-            select: { id: true, email: true, role: true, collegeId: true }
+            select: { id: true, email: true, role: true, collegeId: true, walletAddress: true }
         });
         if (!user) {
             throw new common_1.UnauthorizedException();
         }
         this.cls.set('collegeId', user.collegeId);
-        return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId };
+        return { userId: user.id, email: user.email, role: user.role, collegeId: user.collegeId, walletAddress: user.walletAddress };
     }
 };
 exports.JwtStrategy = JwtStrategy;

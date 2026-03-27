@@ -28,11 +28,15 @@ const admin_module_1 = require("./admin/admin.module");
 const college_context_middleware_1 = require("./common/middleware/college-context.middleware");
 const jwt_auth_guard_1 = require("./auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("./auth/guards/roles.guard");
+const token_gate_guard_1 = require("./auth/guards/token-gate.guard");
 const colleges_module_1 = require("./colleges/colleges.module");
 const governance_module_1 = require("./governance/governance.module");
 const insights_module_1 = require("./insights/insights.module");
 const supabase_module_1 = require("./supabase/supabase.module");
 const treasury_module_1 = require("./treasury/treasury.module");
+const attendance_module_1 = require("./attendance/attendance.module");
+const token_module_1 = require("./token/token.module");
+const analytics_module_1 = require("./analytics/analytics.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -48,7 +52,7 @@ exports.AppModule = AppModule = __decorate([
                 global: true,
                 middleware: { mount: true },
             }),
-            prisma_module_1.PrismaModule, auth_module_1.AuthModule, mail_module_1.MailModule, club_module_1.ClubModule, task_module_1.TaskModule, event_module_1.EventModule, finance_module_1.FinanceModule, treasury_module_1.TreasuryModule, sponsor_module_1.SponsorModule, ai_module_1.AiModule, media_module_1.MediaModule, notification_module_1.NotificationModule, report_module_1.ReportModule, admin_module_1.AdminModule, colleges_module_1.CollegesModule, governance_module_1.GovernanceModule, insights_module_1.InsightsModule, supabase_module_1.SupabaseModule
+            prisma_module_1.PrismaModule, auth_module_1.AuthModule, mail_module_1.MailModule, club_module_1.ClubModule, task_module_1.TaskModule, event_module_1.EventModule, finance_module_1.FinanceModule, treasury_module_1.TreasuryModule, attendance_module_1.AttendanceModule, token_module_1.TokenModule, sponsor_module_1.SponsorModule, ai_module_1.AiModule, media_module_1.MediaModule, notification_module_1.NotificationModule, report_module_1.ReportModule, admin_module_1.AdminModule, colleges_module_1.CollegesModule, governance_module_1.GovernanceModule, insights_module_1.InsightsModule, supabase_module_1.SupabaseModule, analytics_module_1.AnalyticsModule
         ],
         controllers: [app_controller_1.AppController],
         providers: [
@@ -60,6 +64,10 @@ exports.AppModule = AppModule = __decorate([
             {
                 provide: core_1.APP_GUARD,
                 useClass: roles_guard_1.RolesGuard,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: token_gate_guard_1.TokenGateGuard,
             },
         ],
     })
