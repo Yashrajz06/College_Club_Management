@@ -28,6 +28,7 @@ import { reconnectPeraWallet } from './lib/pera';
 import { CollegeSwitcher } from './CollegeSwitcher';
 import Profile from './Profile';
 import Governance from './Governance';
+import TreasuryExplorer from './TreasuryExplorer';
 
 function App() {
   const dispatch = useDispatch();
@@ -65,6 +66,9 @@ function App() {
                   <Link to="/governance" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
                     Governance
                   </Link>
+                  <Link to="/treasury" className="text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors">
+                    Treasury
+                  </Link>
                   {user?.role === 'ADMIN' && (
                     <Link to="/admin" className="text-sm font-medium text-blue-600 hover:text-blue-800">Admin</Link>
                   )}
@@ -93,6 +97,7 @@ function App() {
                         <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-1 z-50">
                           <Link to="/taskboard" className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">Task Board</Link>
                           <Link to="/ledger" className="block px-4 py-2 text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">Financial Ledger</Link>
+                          <Link to="/treasury" className="block px-4 py-2 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-700">Treasury Explorer</Link>
                           <Link to="/finances" className="block px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700">Sponsor CRM</Link>
                           <div className="border-t border-slate-100 my-1"></div>
                           <Link to="/studio" className="block px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 flex items-center gap-2"><span>✨</span> AI Studio</Link>
@@ -146,6 +151,7 @@ function App() {
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/governance" element={<Governance />} />
+            <Route path="/treasury" element={<TreasuryExplorer />} />
           </Routes>
         </main>
 

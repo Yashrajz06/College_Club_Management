@@ -8,5 +8,6 @@ import { FinanceModule } from '../finance/finance.module';
   imports: [InsightsModule, FinanceModule],
   controllers: [GovernanceController],
   providers: [GovernanceService],
+  exports: [GovernanceService],
 })
 export class GovernanceModule {}

@@ -15,7 +15,8 @@ type SyncEntityType =
   | 'registration'
   | 'sponsor'
   | 'governance'
-  | 'poster';
+  | 'poster'
+  | 'treasury';
 
 type DashboardClub = {
   id: string;

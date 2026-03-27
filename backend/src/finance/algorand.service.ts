@@ -48,6 +48,15 @@ interface LifecycleBlockchainActionInput {
   metadata?: Record<string, unknown>;
 }
 
+interface TreasuryReleaseGroupInput {
+  spendRequestId: string;
+  proposalId: string;
+  amount: number;
+  receiptHash?: string | null;
+  beneficiaryWalletAddress?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class AlgorandService {
   private readonly logger = new Logger(AlgorandService.name);
@@ -292,6 +301,9 @@ export class AlgorandService {
 
   async getCollegeContracts() {
     return this.prisma.collegeContract.findMany({
+      where: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
+      },
       orderBy: [{ type: 'asc' }, { createdAt: 'desc' }],
     });
   }
@@ -299,6 +311,7 @@ export class AlgorandService {
   async getActiveCollegeContract(type: CollegeContractType) {
     return this.prisma.collegeContract.findFirst({
       where: {
+        collegeId: this.getCurrentCollegeIdOrThrow(),
         type,
         network: this.getNetworkEnum(),
         isActive: true,
@@ -328,6 +341,7 @@ export class AlgorandService {
     const collegeId = this.getCurrentCollegeIdOrThrow();
     const contracts = await this.prisma.collegeContract.findMany({
       where: {
+        collegeId,
         network: this.getNetworkEnum(),
         isActive: true,
       },
@@ -453,6 +467,86 @@ export class AlgorandService {
       status: pending.status,
       txId: pending.txId,
       activity: pending,
+    };
+  }
+
+  async submitAtomicTreasuryReleaseGroup(input: TreasuryReleaseGroupInput) {
+    const signer = this.getServerSignerOrThrow();
+    const sender = signer.addr.toString();
+    const receiver =
+      input.beneficiaryWalletAddress &&
+      algosdk.isValidAddress(input.beneficiaryWalletAddress)
+        ? input.beneficiaryWalletAddress
+        : sender;
+    const contract = await this.getActiveCollegeContract(CollegeContractType.TREASURY);
+    const params = await this.algodClient.getTransactionParams().do();
+
+    const primaryNotePayload = this.createCollegeNotePayload({
+      action: BlockchainActionType.RELEASE,
+      contractType: CollegeContractType.TREASURY,
+      entityId: input.spendRequestId,
+      metadata: {
+        kind: 'treasury_release',
+        proposalId: input.proposalId,
+        amount: input.amount,
+        receiptHash: input.receiptHash ?? null,
+        receiver,
+        treasuryAppId: contract?.appId ?? null,
+        ...(input.metadata ?? {}),
+      },
+    });
+    const receiptNotePayload = this.createCollegeNotePayload({
+      action: BlockchainActionType.RELEASE,
+      contractType: CollegeContractType.TREASURY,
+      entityId: input.spendRequestId,
+      metadata: {
+        kind: 'receipt_hash',
+        proposalId: input.proposalId,
+        receiptHash: input.receiptHash ?? null,
+      },
+    });
+
+    const txns = [
+      algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender,
+        receiver,
+        amount: 0,
+        suggestedParams: params,
+        note: this.encoder.encode(JSON.stringify(primaryNotePayload)),
+      }),
+      algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender,
+        receiver: sender,
+        amount: 0,
+        suggestedParams: params,
+        note: this.encoder.encode(JSON.stringify(receiptNotePayload)),
+      }),
+    ];
+
+    algosdk.assignGroupID(txns);
+    const signed = txns.map((txn) => txn.signTxn(signer.sk));
+    const response = await this.algodClient.sendRawTransaction(signed).do();
+    const timeoutRounds = Number(
+      process.env.ALGORAND_CONFIRMATION_TIMEOUT_ROUNDS || '10',
+    );
+    const confirmation = await algosdk.waitForConfirmation(
+      this.algodClient,
+      response.txid,
+      timeoutRounds,
+    );
+
+    return {
+      txId: txns[0].txID().toString(),
+      receiptTxId: txns[1].txID().toString(),
+      groupId: txns[0].group
+        ? Buffer.from(txns[0].group).toString('base64')
+        : null,
+      sender,
+      receiver,
+      note: JSON.stringify(primaryNotePayload),
+      receiptNote: JSON.stringify(receiptNotePayload),
+      confirmation,
+      confirmedRound: confirmation.confirmedRound ?? 0,
     };
   }
 

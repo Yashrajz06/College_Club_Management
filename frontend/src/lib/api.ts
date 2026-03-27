@@ -17,9 +17,19 @@ export const apiRequest = async (
   endpoint: string,
   options: RequestInit = {},
 ) => {
+  const isFormData =
+    typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const headers = {
+    ...buildApiHeaders(options.headers),
+  } as Record<string, string>;
+
+  if (isFormData && 'Content-Type' in headers) {
+    delete headers['Content-Type'];
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: buildApiHeaders(options.headers),
+    headers,
   });
 
   if (!response.ok) {

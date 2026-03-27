@@ -23,7 +23,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       const modelsWithCollegeId = [
         'User', 'Club', 'Event', 'Registration', 'Sponsor', 
         'Transaction', 'Task', 'Invitation', 'ClubMember', 'CollegeConfig',
-        'CollegeContract', 'BlockchainActivity'
+        'CollegeContract', 'BlockchainActivity', 'GovernanceProposal',
+        'GovernanceVote', 'TreasurySpendRequest'
       ];
 
       if (collegeId && params.model && modelsWithCollegeId.includes(params.model)) {

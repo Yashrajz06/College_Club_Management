@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AlgorandService } from '../finance/algorand.service';
 import { TokenGateService } from '../finance/token-gate.service';
 import { FinanceService } from '../finance/finance.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
 export class GovernanceService {
@@ -144,18 +145,26 @@ export class GovernanceService {
         action: BlockchainActionType.VOTE,
       });
 
-      // Calculate weight from Entry Token balance (capped at 5x)
+      // Treasury voting weight is pulled from both entry-token and soulbound holdings.
       const config = await this.prisma.collegeConfig.findFirst({
         where: { collegeId },
       });
-      if (config?.entryTokenAssetId) {
-        const balance = await this.algorand.lookupAssetHolding(
-          voter.walletAddress,
-          config.entryTokenAssetId,
-        );
-        weight = Math.min(Number(balance), 5);
-        if (weight < 1) weight = 1;
-      }
+      const [entryBalance, soulboundBalance] = await Promise.all([
+        config?.entryTokenAssetId
+          ? this.algorand.lookupAssetHolding(
+              voter.walletAddress,
+              config.entryTokenAssetId,
+            )
+          : Promise.resolve(0n),
+        config?.soulboundAssetId
+          ? this.algorand.lookupAssetHolding(
+              voter.walletAddress,
+              config.soulboundAssetId,
+            )
+          : Promise.resolve(0n),
+      ]);
+      weight = Math.min(Number(entryBalance + soulboundBalance), 10);
+      if (weight < 1) weight = 1;
     }
 
     // Check for duplicate vote
@@ -262,6 +271,22 @@ export class GovernanceService {
         totalVotes: proposal.votes.length,
       },
     });
+
+    // Auto-sync linked TreasurySpendRequest status
+    const linkedSr = await this.prisma.treasurySpendRequest.findUnique({
+      where: { proposalId },
+    });
+    if (linkedSr) {
+      const srStatus =
+        newStatus === GovernanceProposalStatus.APPROVED
+          ? 'READY_FOR_RELEASE'
+          : 'REJECTED';
+      await this.prisma.treasurySpendRequest.update({
+        where: { id: linkedSr.id },
+        data: { status: srStatus as any },
+      });
+      this.logger.log(`Synced SpendRequest ${linkedSr.id} → ${srStatus}`);
+    }
 
     return updated;
   }

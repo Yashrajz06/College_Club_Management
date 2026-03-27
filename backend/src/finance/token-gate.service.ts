@@ -16,7 +16,11 @@ export class TokenGateService {
   ) {}
 
   async assertWalletEligibleForAction(input: TokenGateCheckInput) {
-    const config = await this.prisma.collegeConfig.findFirst();
+    const config = await this.prisma.collegeConfig.findFirst({
+      where: {
+        collegeId: this.algorand.getCurrentCollegeIdOrThrow(),
+      },
+    });
     if (!config) {
       return {
         checked: false,

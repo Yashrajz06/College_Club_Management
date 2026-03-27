@@ -28,6 +28,7 @@ model College {
   blockchainActivities BlockchainActivity[]
   governanceProposals GovernanceProposal[]
   governanceVotes     GovernanceVote[]
+  treasurySpendRequests TreasurySpendRequest[]
 }
 
 model CollegeConfig {
@@ -115,6 +116,7 @@ model User {
   receivedInvitations Invitation[]
   governanceProposals GovernanceProposal[]
   governanceVotes     GovernanceVote[]
+  treasurySpendRequests TreasurySpendRequest[] @relation("TreasuryRequester")
 
   @@index([collegeId])
 }
@@ -156,6 +158,7 @@ model Club {
   tasks            Task[]
   invitations      Invitation[]
   proposals        GovernanceProposal[]
+  treasurySpendRequests TreasurySpendRequest[]
 
   @@index([collegeId])
 }
@@ -214,6 +217,7 @@ model Event {
   transactions  Transaction[]
   tasks         Task[]
   proposals     GovernanceProposal[]
+  treasurySpendRequests TreasurySpendRequest[]
 
   @@index([collegeId])
 }
@@ -295,6 +299,8 @@ model Transaction {
   sponsorId      String?
   sponsor        Sponsor?        @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
   blockchainActivity BlockchainActivity? @relation(fields: [blockchainActivityId], references: [id], onDelete: SetNull)
+  treasurySpendRequestId String?  @unique
+  treasurySpendRequest TreasurySpendRequest? @relation(fields: [treasurySpendRequestId], references: [id], onDelete: SetNull)
 
   @@index([collegeId])
 }
@@ -361,6 +367,15 @@ enum GovernanceProposalStatus {
   EXECUTED
 }
 
+enum TreasurySpendRequestStatus {
+  PENDING_VOTE
+  APPROVED
+  REJECTED
+  READY_FOR_RELEASE
+  RELEASED
+  CANCELLED
+}
+
 model Task {
   id          String       @id @default(uuid())
   title       String
@@ -407,6 +422,7 @@ model GovernanceProposal {
   proposer    User                     @relation(fields: [proposerId], references: [id], onDelete: Cascade)
 
   votes       GovernanceVote[]
+  treasurySpendRequest TreasurySpendRequest?
 
   @@index([collegeId])
   @@index([eventId])
@@ -429,6 +445,43 @@ model GovernanceVote {
 
   @@unique([proposalId, voterId])
   @@index([collegeId])
+}
+
+model TreasurySpendRequest {
+  id            String                    @id @default(uuid())
+  title         String
+  description   String
+  amount        Float
+  status        TreasurySpendRequestStatus @default(PENDING_VOTE)
+  beneficiaryName String?
+  beneficiaryWalletAddress String?
+  timelockUntil DateTime
+  requestTxId   String?
+  releaseTxId   String?
+  receiptUrl    String?
+  receiptHash   String?
+  receiptFileName String?
+  receiptMimeType String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  collegeId     String
+  college       College                   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  clubId        String
+  club          Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  eventId       String?
+  event         Event?                    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  requesterId   String
+  requester     User                      @relation("TreasuryRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  proposalId    String                    @unique
+  proposal      GovernanceProposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  releaseTransaction Transaction?
+
+  @@index([collegeId])
+  @@index([clubId])
+  @@index([eventId])
+  @@index([status])
 }
 
 enum InvitationStatus {
